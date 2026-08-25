@@ -21,16 +21,20 @@ function buildSamplePlan(destination, origin, selected, budget, preferences = {}
   const car = Math.round(target * .17)
   const experience = target - flight - stay - car
   const originCode = origin.match(/—\s*([A-Z]{3})/)?.[1] || 'USA'
+  const flightQuery = `round trip flights from ${originCode} to ${code} September 12 to September 15 2026 for 2 adults ${preferences.flightTime || ''} ${preferences.maxStops || ''}`
+  const stayQuery = `${(preferences.stayTypes || []).join(' or ') || 'hotels'} in ${template.place} September 12 to September 15 2026`
+  const transportationQuery = `${(preferences.transportModes || []).join(' or ') || 'transportation'} in ${template.place}`
+  const experienceQuery = `${template.experience} near ${template.place}`
   return {
     ...template,
     total: target,
     itinerary: template.route.map((title, i) => ({ day: `Day ${i + 1}`, title, detail: template.details[i], tag: i === 2 ? 'Top pick' : i === 0 ? 'Easy arrival' : i === 3 ? 'Flexible' : selected[i - 1] || 'Explore', icon: [Plane, Car, Mountain, TentTree][i] })),
     preferences,
     picks: [
-      { type: 'Flight', name: `${originCode} → ${code}`, meta: 'Sample round trip · 2 travelers', price: `$${flight}`, note: 'Best estimated value', icon: Plane },
-      { type: 'Stay', name: template.stay, meta: '3 nights · guest favorite', price: `$${stay}`, note: 'Matches your stay style', icon: MapPin },
-      { type: 'Transportation', name: code === 'JFK' ? 'Transit + rideshare plan' : 'Compact crossover', meta: '4-day estimate', price: `$${car}`, note: 'Fits this route', icon: Car },
-      { type: 'Experience', name: template.experience, meta: 'Highly rated sample option', price: `$${experience}`, note: 'Matches your interests', icon: Mountain },
+      { type: 'Flight', name: `${originCode} → ${code}`, meta: 'Round trip · 2 travelers', price: `$${flight}`, note: 'Best estimated value', icon: Plane, linkLabel: 'Search live flights', url: `https://www.google.com/travel/flights?q=${encodeURIComponent(flightQuery)}&curr=USD&gl=US&hl=en` },
+      { type: 'Stay', name: template.stay, meta: '3 nights · guest favorite', price: `$${stay}`, note: 'Matches your stay style', icon: MapPin, linkLabel: 'Check live stays', url: `https://www.google.com/travel/search?q=${encodeURIComponent(stayQuery)}` },
+      { type: 'Transportation', name: code === 'JFK' ? 'Transit + rideshare plan' : 'Compact crossover', meta: '4-day estimate', price: `$${car}`, note: 'Fits this route', icon: Car, linkLabel: 'Compare transportation', url: `https://www.google.com/search?q=${encodeURIComponent(transportationQuery)}` },
+      { type: 'Experience', name: template.experience, meta: 'Highly rated sample option', price: `$${experience}`, note: 'Matches your interests', icon: Mountain, linkLabel: 'Find live options', url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(experienceQuery)}` },
     ],
   }
 }
@@ -164,7 +168,7 @@ export default function App() {
       <div className="leg-strip">{['Airport → stay', 'Stay → local highlights', 'Highlights → main excursion'].map((leg, i) => <div key={leg}><span>{i + 1}</span><b>{leg}</b><small>{i === 0 ? '20 min transit · 11 min drive' : i === 1 ? '0.8 mi · 17 min walk' : '42 mi · 55 min drive'}</small></div>)}</div>
       <div className="results-grid">
         <div className="timeline"><h3>Your day-by-day route</h3>{plan.itinerary.map((item, i) => { const Icon = item.icon; return <article key={item.day}><div className="day-dot">{i+1}</div><div className="day-copy"><small>{item.day}</small><h4>{item.title}</h4><p>{item.detail}</p><span>{item.tag}</span></div><Icon className="day-icon"/></article>})}</div>
-        <aside><h3>Best-fit estimates</h3>{plan.picks.map(p => { const Icon=p.icon; return <div className="pick" key={p.type}><div className="pick-icon"><Icon/></div><div><small>{p.type}</small><b>{p.name}</b><span>{p.meta}</span><em><Star size={12} fill="currentColor"/> {p.note}</em></div><strong>{p.price}</strong></div>})}<button type="button">Compare sample options <ArrowRight size={16}/></button><p className="disclaimer"><b>Demo estimates—not live prices.</b> Bookable links and current prices will be added through approved travel data partners.</p></aside>
+        <aside><h3>Best-fit estimates</h3>{plan.picks.map(p => { const Icon=p.icon; return <div className="pick" key={p.type}><div className="pick-icon"><Icon/></div><div><small>{p.type}</small><b>{p.name}</b><span>{p.meta}</span><em><Star size={12} fill="currentColor"/> {p.note}</em><a className="pick-link" href={p.url} target="_blank" rel="noreferrer">{p.linkLabel} <ArrowRight size={11}/></a></div><strong>{p.price}</strong></div>})}<p className="disclaimer"><b>Prices shown here are still planning estimates.</b> External links open current searches on Google Flights, Google Travel, Google Search, or Google Maps. Licensed APIs will bring live prices into these cards later.</p></aside>
       </div>
     </section></div>}
     <footer><div className="brand"><span className="brand-mark"><Mountain size={19}/></span><span>RoamReady<small>temporary project name</small></span></div><p>Independent USA travel-planning prototype.</p><span>Made for the road ahead.</span></footer>
