@@ -70,21 +70,34 @@ export default function App() {
   const [activitySearch, setActivitySearch] = useState('')
   const [showActivities, setShowActivities] = useState(false)
   const [generated, setGenerated] = useState(true)
-  const [plan, setPlan] = useState(() => buildSamplePlan('Anchorage, AK — ANC', 'Los Angeles, CA — LAX', ['Hiking', 'Fjords & glaciers', 'Wildlife watching'], 2200))
+  const [plan, setPlan] = useState(null)
+  const [view, setView] = useState('planner')
   const [mobileNav, setMobileNav] = useState(false)
   const resultsRef = useRef(null)
   const visibleActivities = useMemo(() => activities.filter(a => a.toLowerCase().includes(activitySearch.toLowerCase())), [activitySearch])
   const toggleActivity = activity => setSelected(current => current.includes(activity) ? current.filter(a => a !== activity) : [...current, activity])
+  const showPlanner = () => { setView('planner'); window.location.hash = 'planner'; setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 20) }
+  const submitTrip = event => {
+    event.preventDefault()
+    setGenerated(false)
+    setTimeout(() => {
+      setPlan(buildSamplePlan(destination, origin, selected, budget))
+      setGenerated(true)
+      setView('results')
+      window.location.hash = 'trip-results'
+      setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 20)
+    }, 900)
+  }
 
   return <main>
     <nav>
-      <a className="brand" href="#top"><span className="brand-mark"><Mountain size={20}/></span><span>RoamReady<small>working name</small></span></a>
-      <div className={`nav-links ${mobileNav ? 'open' : ''}`}><a href="#planner">Plan a trip</a><a href="#results">Sample itinerary</a><a href="#how">How it works</a></div>
+      <a className="brand" href="#top" onClick={showPlanner}><span className="brand-mark"><Mountain size={20}/></span><span>RoamReady<small>working name</small></span></a>
+      <div className={`nav-links ${mobileNav ? 'open' : ''}`}><a href="#planner" onClick={showPlanner}>Plan a trip</a>{view === 'planner' && <a href="#how">How it works</a>}{view === 'results' && <a href="#trip-results">Your trip</a>}</div>
       <button className="nav-cta">My trips</button>
       <button className="menu" onClick={() => setMobileNav(!mobileNav)} aria-label="Toggle navigation">{mobileNav ? <X/> : <Menu/>}</button>
     </nav>
 
-    <section className="hero" id="top">
+    {view === 'planner' && <><section className="hero" id="top">
       <div className="hero-copy">
         <div className="eyebrow"><Sparkles size={15}/> One search. Your whole trip.</div>
         <h1>Tell us what you love.<br/><em>We’ll map the adventure.</em></h1>
@@ -101,7 +114,7 @@ export default function App() {
 
     <section className="planner-wrap" id="planner">
       <div className="section-heading"><div><span className="step">01</span><h2>Start with the basics</h2></div><p>Change anything—this sample is ready to explore.</p></div>
-      <form className="planner" onSubmit={e => { e.preventDefault(); setGenerated(false); setTimeout(() => { setPlan(buildSamplePlan(destination, origin, selected, budget)); setGenerated(true); setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80) }, 900) }}>
+      <form className="planner" onSubmit={submitTrip}>
         <div className="grid two">
           <Autocomplete label="Leaving from" value={origin} onChange={setOrigin} options={airports} placeholder="City or airport" icon={Plane}/>
           <Autocomplete label="Going to" value={destination} onChange={setDestination} options={airports} placeholder="City or airport" icon={MapPin}/>
@@ -129,15 +142,17 @@ export default function App() {
       </form>
     </section>
 
-    <section ref={resultsRef} className={`results ${generated ? 'visible' : ''}`} id="results">
+    <section className="how" id="how"><span className="eyebrow"><CircleDollarSign size={15}/> Built around real choices</span><h2>A tour-company level plan.<br/>Still completely yours.</h2><div className="how-grid"><article><b>01</b><h3>Share your trip style</h3><p>Choose your route, dates, budget, comfort level and anything you’d love to do.</p></article><article><b>02</b><h3>Get a complete match</h3><p>See flights, lodging, transportation and highly rated experiences in one plan.</p></article><article><b>03</b><h3>Make it your own</h3><p>Swap any suggestion, adjust your pace and watch the trip budget update.</p></article></div></section></>}
+
+    {view === 'results' && plan && <div className="trip-page" id="trip-results">
+      <div className="trip-toolbar"><button type="button" onClick={showPlanner}>← Edit trip details</button><span><Sparkles size={14}/> Your custom trip workspace</span></div>
+    <section ref={resultsRef} className={`results ${generated ? 'visible' : ''}`}>
       <div className="results-head"><div><div className="eyebrow light"><Sparkles size={14}/> Newly built sample plan</div><h2>{plan.title}</h2><p>{origin.split('—')[0]} to {plan.place} · September · 2 travelers</p></div><div className="budget-card"><small>Estimated trip total</small><b>${plan.total.toLocaleString()}</b><span>${Math.max(budget - plan.total, 0).toLocaleString()} under your ${budget.toLocaleString()} limit</span></div></div>
       <div className="results-grid">
         <div className="timeline"><h3>Your day-by-day route</h3>{plan.itinerary.map((item, i) => { const Icon = item.icon; return <article key={item.day}><div className="day-dot">{i+1}</div><div className="day-copy"><small>{item.day}</small><h4>{item.title}</h4><p>{item.detail}</p><span>{item.tag}</span></div><Icon className="day-icon"/></article>})}</div>
         <aside><h3>Best-fit estimates</h3>{plan.picks.map(p => { const Icon=p.icon; return <div className="pick" key={p.type}><div className="pick-icon"><Icon/></div><div><small>{p.type}</small><b>{p.name}</b><span>{p.meta}</span><em><Star size={12} fill="currentColor"/> {p.note}</em></div><strong>{p.price}</strong></div>})}<button type="button">Compare sample options <ArrowRight size={16}/></button><p className="disclaimer"><b>Demo estimates—not live prices.</b> Bookable links and current prices will be added through approved travel data partners.</p></aside>
       </div>
-    </section>
-
-    <section className="how" id="how"><span className="eyebrow"><CircleDollarSign size={15}/> Built around real choices</span><h2>A tour-company level plan.<br/>Still completely yours.</h2><div className="how-grid"><article><b>01</b><h3>Share your trip style</h3><p>Choose your route, dates, budget, comfort level and anything you’d love to do.</p></article><article><b>02</b><h3>Get a complete match</h3><p>See flights, lodging, transportation and highly rated experiences in one plan.</p></article><article><b>03</b><h3>Make it your own</h3><p>Swap any suggestion, adjust your pace and watch the trip budget update.</p></article></div></section>
+    </section></div>}
     <footer><div className="brand"><span className="brand-mark"><Mountain size={19}/></span><span>RoamReady<small>temporary project name</small></span></div><p>Independent USA travel-planning prototype.</p><span>Made for the road ahead.</span></footer>
   </main>
 }
