@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { ArrowRight, CalendarDays, Car, Check, ChevronDown, CircleDollarSign, MapPin, Menu, Mountain, Plane, Search, Sparkles, Star, TentTree, X } from 'lucide-react'
 import { airports } from './data/airports'
 import { activities, activityCategories, searchActivities } from './data/activities'
+import { createGoogleFlightsUrl } from './utils/googleFlights'
 
 const destinationPlans = {
   ANC: { title: 'Four wild days in Alaska', place: 'Anchorage', route: ['Arrive & explore Anchorage', 'Turnagain Arm scenic drive', 'Kenai Fjords adventure', 'Exit Glacier & return'], details: ['Pick up your car, check in, and walk the Tony Knowles Coastal Trail before dinner downtown.', 'Stop at Beluga Point, explore Girdwood, and choose a forest trail that matches your pace.', 'Head to Seward for glaciers, sea lions, puffins, and possible whale sightings.', 'Take a morning glacier-area hike, have lunch in Seward, and make the relaxed return drive.'], stay: 'Comfort hotel near downtown', experience: 'Kenai Fjords Cruise', base: 1947 },
@@ -24,8 +25,6 @@ function buildSamplePlan(destination, origin, selected, budget, preferences = {}
   const checkIn = preferences.checkIn || '2026-09-12'
   const checkOut = preferences.checkOut || '2026-09-15'
   const travelers = preferences.travelers || 2
-  const stopWords = preferences.maxStops === 'Nonstop only' ? 'nonstop only' : preferences.maxStops === '1 stop max' ? 'maximum one stop' : 'any number of stops'
-  const flightQuery = `round trip flights from ${originCode} to ${code} from ${checkIn} to ${checkOut} for ${travelers} adults, ${preferences.flightTime || 'any time'}, ${stopWords}`
   const stayQuery = `${(preferences.stayTypes || []).join(' or ') || 'hotels'} in ${template.place} from ${checkIn} to ${checkOut} for ${travelers} guests`
   const transportationQuery = `${(preferences.transportModes || []).join(' or ') || 'transportation'} in ${template.place}`
   const experienceQuery = `${template.experience} near ${template.place}`
@@ -36,7 +35,7 @@ function buildSamplePlan(destination, origin, selected, budget, preferences = {}
     ...(wantsHotel ? [{ label: 'Google Hotels', url: `https://www.google.com/travel/hotels?q=${encodeURIComponent(stayQuery)}&checkin=${checkIn}&checkout=${checkOut}` }] : []),
     ...(wantsRental ? [
       { label: 'Airbnb', url: `https://www.airbnb.com/s/${encodeURIComponent(template.place)}/homes?checkin=${checkIn}&checkout=${checkOut}&adults=${travelers}` },
-      { label: 'Vrbo', url: `https://www.vrbo.com/searchResults.html?destination=${encodeURIComponent(template.place)}&startDate=${checkIn}&endDate=${checkOut}&adults=${travelers}` }
+      { label: 'Vrbo', url: `https://www.vrbo.com/search?destination=${encodeURIComponent(template.place)}&startDate=${checkIn}&endDate=${checkOut}&adults=${travelers}` }
     ] : [])
   ]
   return {
@@ -45,7 +44,7 @@ function buildSamplePlan(destination, origin, selected, budget, preferences = {}
     itinerary: template.route.map((title, i) => ({ day: `Day ${i + 1}`, title, detail: template.details[i], tag: i === 2 ? 'Top pick' : i === 0 ? 'Easy arrival' : i === 3 ? 'Flexible' : selected[i - 1] || 'Explore', icon: [Plane, Car, Mountain, TentTree][i] })),
     preferences,
     picks: [
-      { type: 'Flight', name: `${originCode} → ${code}`, meta: `Round trip · ${travelers} travelers`, price: `$${flight}`, note: `${preferences.flightTime} · ${preferences.maxStops}`, icon: Plane, links: [{ label: 'Search live on Google Flights', url: `https://www.google.com/travel/flights?q=${encodeURIComponent(flightQuery)}&curr=USD&gl=US&hl=en` }] },
+      { type: 'Flight', name: `${originCode} → ${code}`, meta: `Round trip · ${travelers} travelers`, price: `$${flight}`, note: `${preferences.flightTime} · ${preferences.maxStops}`, icon: Plane, links: [{ label: 'Search live on Google Flights', url: createGoogleFlightsUrl({ origin: originCode, destination: code, departureDate: checkIn, returnDate: checkOut, travelers, flightTime: preferences.flightTime, maxStops: preferences.maxStops }) }] },
       { type: 'Stay', name: template.stay, meta: `${checkIn} → ${checkOut}`, price: `$${stay}`, note: 'Matches your selected stay types', icon: MapPin, links: stayLinks.length ? stayLinks : [{ label: 'Search stays', url: `https://www.google.com/travel/search?q=${encodeURIComponent(stayQuery)}` }] },
       { type: 'Transportation', name: code === 'JFK' ? 'Transit + rideshare plan' : 'Compact crossover', meta: 'Trip transportation estimate', price: `$${car}`, note: 'Fits this route', icon: Car, links: [{ label: 'Compare transportation', url: `https://www.google.com/search?q=${encodeURIComponent(transportationQuery)}` }] },
       { type: 'Experience', name: template.experience, meta: 'Highly rated sample option', price: `$${experience}`, note: 'Matches your interests', icon: Mountain, links: [{ label: 'Find live options', url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(experienceQuery)}` }] },
