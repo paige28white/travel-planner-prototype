@@ -13,3 +13,20 @@
   color: var(--pine);
   text-decoration: underline;
 }
+
+.pick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+}
+
+.date-pair input {
+  min-width: 0;
+  font-size: 10px;
+}
+
+.date-pair b {
+  color: #9aa5a1;
+  font-size: 9px;
+  text-transform: uppercase;
+}
