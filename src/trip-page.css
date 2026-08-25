@@ -41,6 +41,15 @@
   padding-top: 42px;
 }
 
+.activity-summary {
+  margin: 10px 2px 3px;
+  color: #81908b;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
 @media (max-width: 600px) {
   .trip-toolbar {
     align-items: flex-start;
