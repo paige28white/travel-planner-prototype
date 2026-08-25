@@ -90,3 +90,72 @@ const activityGroups = {
 
 export const activityCategories = Object.entries(activityGroups).map(([name, items]) => ({ name, items }))
 export const activities = [...new Set(Object.values(activityGroups).flat())].sort((a, b) => a.localeCompare(b))
+
+const extraActivities = [
+  '5K races', 'Adult playgrounds', 'Aerobics classes', 'Afternoon tea', 'Animal sanctuaries', 'Anime conventions',
+  'Aqua aerobics', 'Art walks', 'Astrology readings', 'Backyard games', 'Barre classes', 'Bathhouses', 'Beach bonfires',
+  'Beach workouts', 'Beekeeping experiences', 'Bicycle rentals', 'Board-game cafés', 'Boat parties', 'Book clubs',
+  'Boot-camp workouts', 'Breathwork classes', 'Burlesque shows', 'Card games', 'Car shows', 'Cheese tasting',
+  'Chess clubs', 'Circus classes', 'Clam digging', 'Community festivals', 'Competitive eating', 'Crabbing',
+  'CrossFit classes', 'Crystal shops', 'Dance workouts', 'Darts', 'DJ classes', 'Dog-friendly activities',
+  'Donut tours', 'E-bike rentals', 'Ecstatic dance', 'Farm dinners', 'Fashion shows', 'Fitness classes',
+  'Flower farms', 'Foraging classes', 'Free local events', 'Full-moon parties', 'Gaming cafés', 'Gay bars',
+  'Gem mining', 'Group workouts', 'Hammocking', 'Henna art', 'High tea', 'Historical reenactments', 'Hookah lounges',
+  'Improv classes', 'K-pop dance classes', 'Language exchanges', 'Laser tag', 'Lawn games', 'Line dancing',
+  'Local meetups', 'Lumberjack shows', 'Makeup classes', 'Marathons', 'Makers markets', 'Metal detecting',
+  'Mobile saunas', 'Mocktail bars', 'Monster truck shows', 'Moonlight kayaking', 'Morning run clubs', 'Open-mic nights',
+  'Outdoor gyms', 'Outdoor movies', 'Paddleboard yoga', 'Paint-and-sip classes', 'Park workouts', 'Piano bars',
+  'Pole-dancing classes', 'Puppy yoga', 'Quilt shops', 'Running', 'Running tours', 'Salsa dancing', 'Scavenger hunts',
+  'Silent discos', 'Skate parks', 'Spin classes', 'Square dancing', 'Stand-up paddleboard fitness', 'Strength training',
+  'Tango lessons', 'Tarot readings', 'Tattoo shops', 'Tiki bars', 'Trail races', 'Urban exploring', 'Video-game bars',
+  'Volunteering', 'Water aerobics', 'Wine-and-paint nights', 'Zumba classes'
+]
+
+for (const item of extraActivities) {
+  if (!activities.includes(item)) activities.push(item)
+}
+activities.sort((a, b) => a.localeCompare(b))
+
+const intentAliases = {
+  drink: ['bar', 'beer', 'brewery', 'cocktail', 'distillery', 'nightlife', 'rooftop', 'speakeasy', 'tiki', 'whiskey', 'wine'],
+  drinking: ['bar', 'beer', 'brewery', 'cocktail', 'distillery', 'nightlife', 'rooftop', 'speakeasy', 'tiki', 'whiskey', 'wine'],
+  party: ['bar', 'club', 'dancing', 'disco', 'festival', 'nightlife', 'party'],
+  partying: ['bar', 'club', 'dancing', 'disco', 'festival', 'nightlife', 'party'],
+  workout: ['aerobics', 'barre', 'boot-camp', 'crossfit', 'fitness', 'gym', 'pilates', 'running', 'spin', 'strength', 'workout', 'yoga', 'zumba'],
+  exercise: ['aerobics', 'barre', 'biking', 'crossfit', 'fitness', 'gym', 'hiking', 'pilates', 'running', 'spin', 'strength', 'swimming', 'workout', 'yoga'],
+  fitness: ['aerobics', 'barre', 'boot-camp', 'crossfit', 'fitness', 'gym', 'pilates', 'running', 'spin', 'strength', 'workout', 'yoga', 'zumba'],
+  relax: ['bathhouse', 'beach relaxation', 'facial', 'float', 'hammocking', 'hot springs', 'massage', 'meditation', 'pool', 'sauna', 'spa', 'steam', 'wellness', 'yoga'],
+  relaxing: ['bathhouse', 'beach relaxation', 'facial', 'float', 'hammocking', 'hot springs', 'massage', 'meditation', 'pool', 'sauna', 'spa', 'steam', 'wellness', 'yoga'],
+  pamper: ['facial', 'massage', 'nail', 'resort', 'sauna', 'spa', 'wellness'],
+  romantic: ['anniversary', 'couples', 'private dinner', 'proposal', 'romantic', 'rooftop dining', 'sunset', 'wine'],
+  date: ['arcade', 'bowling', 'cocktail', 'comedy', 'couples', 'dinner', 'mini golf', 'paint-and-sip', 'romantic', 'sunset'],
+  art: ['art', 'candle', 'ceramic', 'craft', 'drawing', 'glass', 'jewelry', 'mosaic', 'painting', 'pottery', 'printmaking', 'sewing', 'weaving'],
+  crafty: ['candle', 'ceramic', 'craft', 'embroidery', 'flower arranging', 'jewelry', 'painting', 'pottery', 'sewing', 'soap', 'weaving', 'woodworking'],
+  water: ['beach', 'boat', 'canoe', 'diving', 'fishing', 'jet ski', 'kayak', 'paddleboard', 'rafting', 'sailing', 'scuba', 'snorkel', 'surf', 'swim', 'water', 'whale'],
+  ocean: ['beach', 'boat', 'diving', 'fishing', 'marine', 'sailing', 'scuba', 'snorkel', 'surf', 'tide', 'whale'],
+  outdoors: ['backpacking', 'camping', 'canyoneering', 'climbing', 'hiking', 'horseback', 'mountain', 'national park', 'nature', 'outdoor', 'trail', 'zipline'],
+  adventure: ['atv', 'canyoneering', 'climbing', 'diving', 'glacier', 'off-road', 'paragliding', 'rafting', 'skydiving', 'surfing', 'ziplining'],
+  cheap: ['free', 'garden', 'hiking', 'market', 'museum', 'picnic', 'public art', 'sunrise', 'sunset', 'walking'],
+  free: ['free', 'garden', 'hiking', 'market', 'picnic', 'public art', 'sunrise', 'sunset', 'walking'],
+  kids: ['amusement', 'aquarium', 'children', 'farm', 'kid', 'mini golf', 'playground', 'science', 'theme park', 'trampoline', 'water park', 'zoo'],
+  family: ['amusement', 'aquarium', 'children', 'family', 'farm', 'mini golf', 'museum', 'playground', 'science', 'theme park', 'train', 'zoo'],
+  weird: ['animal café', 'axe throwing', 'ghost', 'goat yoga', 'murder-mystery', 'psychic', 'rage room', 'roadside', 'themed', 'underground'],
+  random: ['animal café', 'axe throwing', 'circus', 'ghost', 'goat yoga', 'laser tag', 'murder-mystery', 'psychic', 'rage room', 'roadside', 'scavenger', 'themed', 'underground'],
+  social: ['bar', 'class', 'club', 'dancing', 'festival', 'karaoke', 'meetup', 'open-mic', 'party', 'trivia'],
+  nightlife: ['bar', 'cabaret', 'casino', 'club', 'comedy', 'dancing', 'drag', 'karaoke', 'live music', 'night', 'speakeasy'],
+  selfcare: ['bathhouse', 'facial', 'massage', 'meditation', 'nail', 'sauna', 'spa', 'wellness', 'yoga']
+}
+
+export function searchActivities(query) {
+  const normalized = query.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '')
+  if (!normalized) return activities
+  const words = normalized.split(/\s+/)
+  const expanded = new Set(words)
+  for (const word of words) {
+    for (const alias of intentAliases[word] || []) expanded.add(alias)
+  }
+  return activities.filter(activity => {
+    const value = activity.toLowerCase()
+    return value.includes(normalized) || [...expanded].some(term => value.includes(term))
+  })
+}
