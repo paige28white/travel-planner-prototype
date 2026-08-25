@@ -5,6 +5,7 @@ import './styles.css'
 import './trip-page.css'
 import './preferences.css'
 import './external-links.css'
+import './stay-route.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode><App /></React.StrictMode>,
