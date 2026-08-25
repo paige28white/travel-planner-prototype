@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { ArrowRight, CalendarDays, Car, Check, ChevronDown, CircleDollarSign, MapPin, Menu, Mountain, Plane, Search, Sparkles, Star, TentTree, X } from 'lucide-react'
 import { airports } from './data/airports'
-import { activities, activityCategories } from './data/activities'
+import { activities, activityCategories, searchActivities } from './data/activities'
 
 const destinationPlans = {
   ANC: { title: 'Four wild days in Alaska', place: 'Anchorage', route: ['Arrive & explore Anchorage', 'Turnagain Arm scenic drive', 'Kenai Fjords adventure', 'Exit Glacier & return'], details: ['Pick up your car, check in, and walk the Tony Knowles Coastal Trail before dinner downtown.', 'Stop at Beluga Point, explore Girdwood, and choose a forest trail that matches your pace.', 'Head to Seward for glaciers, sea lions, puffins, and possible whale sightings.', 'Take a morning glacier-area hike, have lunch in Seward, and make the relaxed return drive.'], stay: 'Comfort hotel near downtown', experience: 'Kenai Fjords Cruise', base: 1947 },
@@ -58,7 +58,7 @@ export default function App() {
   const [view, setView] = useState('planner')
   const [mobileNav, setMobileNav] = useState(false)
   const resultsRef = useRef(null)
-  const visibleActivities = useMemo(() => activities.filter(a => a.toLowerCase().includes(activitySearch.toLowerCase())), [activitySearch])
+  const visibleActivities = useMemo(() => searchActivities(activitySearch), [activitySearch])
   const toggleActivity = activity => setSelected(current => current.includes(activity) ? current.filter(a => a !== activity) : [...current, activity])
   const showPlanner = () => { setView('planner'); window.location.hash = 'planner'; setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 20) }
   const submitTrip = event => {
