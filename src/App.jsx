@@ -1,23 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { ArrowRight, CalendarDays, Car, Check, ChevronDown, CircleDollarSign, MapPin, Menu, Mountain, Plane, Search, Sparkles, Star, TentTree, X } from 'lucide-react'
-
-const airports = [
-  'Los Angeles, CA — LAX', 'San Francisco, CA — SFO', 'San Diego, CA — SAN',
-  'Sacramento, CA — SMF', 'San Jose, CA — SJC', 'Honolulu, HI — HNL',
-  'Anchorage, AK — ANC', 'Seattle, WA — SEA', 'Denver, CO — DEN',
-  'New York, NY — JFK', 'Portland, OR — PDX', 'Las Vegas, NV — LAS',
-  'Boston, MA — BOS', 'Chicago, IL — ORD', 'Miami, FL — MIA', 'Orlando, FL — MCO',
-  'Austin, TX — AUS', 'Dallas, TX — DFW', 'New Orleans, LA — MSY', 'Nashville, TN — BNA',
-  'Phoenix, AZ — PHX', 'Salt Lake City, UT — SLC', 'Bozeman, MT — BZN', 'Jackson, WY — JAC',
-  'Charleston, SC — CHS', 'Savannah, GA — SAV', 'Washington, DC — DCA', 'Portland, ME — PWM',
-]
-
-const activities = [
-  'Hiking', 'Scenic drives', 'Wildlife watching', 'National parks', 'Kayaking',
-  'Fjords & glaciers', 'Scuba diving', 'Snorkeling', 'Skiing', 'Snowboarding',
-  'Surfing', 'Camping', 'Hot springs', 'Museums', 'Food tours', 'Live music',
-  'Beaches', 'Fishing', 'Whale watching', 'Photography', 'Stargazing', 'Biking',
-]
+import { airports } from './data/airports'
+import { activities, activityCategories } from './data/activities'
 
 const destinationPlans = {
   ANC: { title: 'Four wild days in Alaska', place: 'Anchorage', route: ['Arrive & explore Anchorage', 'Turnagain Arm scenic drive', 'Kenai Fjords adventure', 'Exit Glacier & return'], details: ['Pick up your car, check in, and walk the Tony Knowles Coastal Trail before dinner downtown.', 'Stop at Beluga Point, explore Girdwood, and choose a forest trail that matches your pace.', 'Head to Seward for glaciers, sea lions, puffins, and possible whale sightings.', 'Take a morning glacier-area hike, have lunch in Seward, and make the relaxed return drive.'], stay: 'Comfort hotel near downtown', experience: 'Kenai Fjords Cruise', base: 1947 },
@@ -63,8 +47,8 @@ function Autocomplete({ label, value, onChange, options, placeholder, icon: Icon
 }
 
 export default function App() {
-  const [origin, setOrigin] = useState('Los Angeles, CA — LAX')
-  const [destination, setDestination] = useState('Anchorage, AK — ANC')
+  const [origin, setOrigin] = useState('Los Angeles, CA — LAX · Los Angeles International')
+  const [destination, setDestination] = useState('Anchorage, AK — ANC · Ted Stevens Anchorage International')
   const [budget, setBudget] = useState(2200)
   const [selected, setSelected] = useState(['Hiking', 'Fjords & glaciers', 'Wildlife watching'])
   const [activitySearch, setActivitySearch] = useState('')
@@ -129,7 +113,7 @@ export default function App() {
           <div className="interest-title"><div><span className="step">02</span><h2>I want to…</h2></div><span>Choose as many as you like</span></div>
           <button type="button" className="activity-search" onClick={() => setShowActivities(!showActivities)}><Search size={18}/><span>{selected.length ? `${selected.length} activities selected` : 'Search hundreds of things to do'}</span><ChevronDown size={18}/></button>
           <div className="chips">{selected.map(a => <button type="button" key={a} onClick={() => toggleActivity(a)}>{a}<X size={14}/></button>)}</div>
-          {showActivities && <div className="activity-panel"><div className="panel-search"><Search size={16}/><input autoFocus value={activitySearch} onChange={e => setActivitySearch(e.target.value)} placeholder="Try hiking, food tours, skiing…"/></div><div className="activity-grid">{visibleActivities.map(a => <button type="button" className={selected.includes(a) ? 'selected' : ''} onClick={() => toggleActivity(a)} key={a}>{selected.includes(a) && <Check size={14}/>} {a}</button>)}</div></div>}
+          {showActivities && <div className="activity-panel"><div className="panel-search"><Search size={16}/><input autoFocus value={activitySearch} onChange={e => setActivitySearch(e.target.value)} placeholder="Try dancing, pottery, massage, hiking…"/></div><div className="activity-summary">{activitySearch ? `${visibleActivities.length} matching ideas` : `${activities.length} ideas across ${activityCategories.length} categories`}</div><div className="activity-grid">{visibleActivities.map(a => <button type="button" className={selected.includes(a) ? 'selected' : ''} onClick={() => toggleActivity(a)} key={a}>{selected.includes(a) && <Check size={14}/>} {a}</button>)}</div></div>}
         </div>
 
         <div className="budget-row">
