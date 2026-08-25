@@ -12,7 +12,7 @@ const destinationPlans = {
   SAN: { title: 'Four easygoing days in San Diego', place: 'San Diego', route: ['Arrive & sunset cliffs', 'La Jolla coast day', 'Balboa Park & neighborhoods', 'Beach morning & departure'], details: ['Check in and start with a coastal sunset and casual dinner.', 'Kayak, snorkel, watch wildlife, or stroll the coves at your own pace.', 'Mix gardens and museums with a neighborhood food crawl.', 'Choose one last beach walk or brunch before heading home.'], stay: 'Coastal midrange hotel', experience: 'La Jolla kayak tour', base: 1460 },
 }
 
-function buildSamplePlan(destination, origin, selected, budget) {
+function buildSamplePlan(destination, origin, selected, budget, preferences = {}) {
   const code = destination.match(/—\s*([A-Z]{3})/)?.[1] || 'ANC'
   const template = destinationPlans[code] || { title: `Four days around ${destination.split(',')[0] || 'your destination'}`, place: destination.split(',')[0] || 'Your destination', route: ['Arrive & get oriented', 'Local highlights day', 'Signature adventure', 'Slow morning & departure'], details: ['Check in, explore nearby, and begin with an easy local favorite.', 'Combine the area’s most-loved sights with food and time to wander.', `Build today around ${selected.slice(0, 2).join(' and ') || 'your favorite activities'}.`, 'Keep the final morning flexible before heading home.'], stay: 'Top-rated moderate stay', experience: selected[0] ? `Highly rated ${selected[0].toLowerCase()} experience` : 'Traveler-favorite excursion', base: 1650 }
   const target = Math.max(780, Math.min(template.base, budget - 75))
@@ -25,6 +25,7 @@ function buildSamplePlan(destination, origin, selected, budget) {
     ...template,
     total: target,
     itinerary: template.route.map((title, i) => ({ day: `Day ${i + 1}`, title, detail: template.details[i], tag: i === 2 ? 'Top pick' : i === 0 ? 'Easy arrival' : i === 3 ? 'Flexible' : selected[i - 1] || 'Explore', icon: [Plane, Car, Mountain, TentTree][i] })),
+    preferences,
     picks: [
       { type: 'Flight', name: `${originCode} → ${code}`, meta: 'Sample round trip · 2 travelers', price: `$${flight}`, note: 'Best estimated value', icon: Plane },
       { type: 'Stay', name: template.stay, meta: '3 nights · guest favorite', price: `$${stay}`, note: 'Matches your stay style', icon: MapPin },
@@ -53,6 +54,12 @@ export default function App() {
   const [selected, setSelected] = useState(['Hiking', 'Fjords & glaciers', 'Wildlife watching'])
   const [activitySearch, setActivitySearch] = useState('')
   const [showActivities, setShowActivities] = useState(false)
+  const [flightTime, setFlightTime] = useState('Daytime')
+  const [maxStops, setMaxStops] = useState('1 stop max')
+  const [stayTypes, setStayTypes] = useState(['Hotel', 'Vacation rental'])
+  const [locationPriority, setLocationPriority] = useState('Close to activities')
+  const [transportModes, setTransportModes] = useState(['Rental car', 'Walking'])
+  const [maxDrive, setMaxDrive] = useState(3)
   const [generated, setGenerated] = useState(true)
   const [plan, setPlan] = useState(null)
   const [view, setView] = useState('planner')
@@ -60,12 +67,13 @@ export default function App() {
   const resultsRef = useRef(null)
   const visibleActivities = useMemo(() => searchActivities(activitySearch), [activitySearch])
   const toggleActivity = activity => setSelected(current => current.includes(activity) ? current.filter(a => a !== activity) : [...current, activity])
+  const toggleChoice = (value, setter) => setter(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value])
   const showPlanner = () => { setView('planner'); window.location.hash = 'planner'; setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 20) }
   const submitTrip = event => {
     event.preventDefault()
     setGenerated(false)
     setTimeout(() => {
-      setPlan(buildSamplePlan(destination, origin, selected, budget))
+      setPlan(buildSamplePlan(destination, origin, selected, budget, { flightTime, maxStops, stayTypes, locationPriority, transportModes, maxDrive }))
       setGenerated(true)
       setView('results')
       window.location.hash = 'trip-results'
@@ -116,8 +124,20 @@ export default function App() {
           {showActivities && <div className="activity-panel"><div className="panel-search"><Search size={16}/><input autoFocus value={activitySearch} onChange={e => setActivitySearch(e.target.value)} placeholder="Try dancing, pottery, massage, hiking…"/></div><div className="activity-summary">{activitySearch ? `${visibleActivities.length} matching ideas` : `${activities.length} ideas across ${activityCategories.length} categories`}</div><div className="activity-grid">{visibleActivities.map(a => <button type="button" className={selected.includes(a) ? 'selected' : ''} onClick={() => toggleActivity(a)} key={a}>{selected.includes(a) && <Check size={14}/>} {a}</button>)}</div></div>}
         </div>
 
+        <div className="preference-block">
+          <div className="interest-title"><div><span className="step">03</span><h2>How do you like to travel?</h2></div><span>These help us choose—not just find—the best options</span></div>
+          <div className="preference-grid">
+            <div className="preference-group"><b>Flight timing</b><div className="choice-row">{['Daytime', 'Red-eye is okay', 'Early morning', 'Cheapest time'].map(item => <button type="button" className={flightTime === item ? 'active' : ''} onClick={() => setFlightTime(item)} key={item}>{item}</button>)}</div></div>
+            <label className="preference-group"><b>Flight stops</b><select value={maxStops} onChange={e => setMaxStops(e.target.value)}><option>Nonstop only</option><option>1 stop max</option><option>Any number of stops</option></select></label>
+            <div className="preference-group wide"><b>Where would you stay?</b><div className="choice-row">{['Hotel', 'Vacation rental', 'Hostel', 'Resort', 'Cabin', 'Camping / glamping', 'Anything under budget'].map(item => <button type="button" className={stayTypes.includes(item) ? 'active' : ''} onClick={() => toggleChoice(item, setStayTypes)} key={item}>{item}</button>)}</div></div>
+            <label className="preference-group"><b>Location priority</b><select value={locationPriority} onChange={e => setLocationPriority(e.target.value)}><option>Close to activities</option><option>Walkable neighborhood</option><option>Near nightlife & food</option><option>Near public transit</option><option>Scenic & quiet</option><option>Cheapest reasonable option</option></select></label>
+            <div className="preference-group wide"><b>Getting around</b><div className="choice-row">{['Rental car', 'Public transit', 'Rideshare', 'Walking', 'Biking', 'Avoid driving'].map(item => <button type="button" className={transportModes.includes(item) ? 'active' : ''} onClick={() => toggleChoice(item, setTransportModes)} key={item}>{item}</button>)}</div></div>
+            <div className="preference-group drive-limit"><b>Maximum driving per day <span>{maxDrive} {maxDrive === 1 ? 'hour' : 'hours'}</span></b><input aria-label="Maximum driving time per day" type="range" min="1" max="6" value={maxDrive} onChange={e => setMaxDrive(Number(e.target.value))}/></div>
+          </div>
+        </div>
+
         <div className="budget-row">
-          <div><span className="step">03</span><div><h2>Your total trip budget</h2><p>For flights, stay, car and activities</p></div></div>
+          <div><span className="step">04</span><div><h2>Your total trip budget</h2><p>For flights, stay, transportation and activities</p></div></div>
           <output>${budget.toLocaleString()}</output>
           <input aria-label="Trip budget" type="range" min="800" max="5000" step="100" value={budget} onChange={e => setBudget(Number(e.target.value))}/>
           <div className="range-labels"><span>$800</span><span>$5,000+</span></div>
@@ -132,6 +152,16 @@ export default function App() {
       <div className="trip-toolbar"><button type="button" onClick={showPlanner}>← Edit trip details</button><span><Sparkles size={14}/> Your custom trip workspace</span></div>
     <section ref={resultsRef} className={`results ${generated ? 'visible' : ''}`}>
       <div className="results-head"><div><div className="eyebrow light"><Sparkles size={14}/> Newly built sample plan</div><h2>{plan.title}</h2><p>{origin.split('—')[0]} to {plan.place} · September · 2 travelers</p></div><div className="budget-card"><small>Estimated trip total</small><b>${plan.total.toLocaleString()}</b><span>${Math.max(budget - plan.total, 0).toLocaleString()} under your ${budget.toLocaleString()} limit</span></div></div>
+      <div className="route-overview">
+        <div className="route-map" aria-label="Prototype map of the suggested trip stops">
+          <div className="map-note">Prototype route map · live geography coming next</div>
+          <svg viewBox="0 0 700 330" role="img" aria-label="Suggested route connecting four itinerary stops"><path className="map-route-shadow" d="M95 246 C180 175 235 220 315 150 S470 90 610 75"/><path className="map-route" d="M95 246 C180 175 235 220 315 150 S470 90 610 75"/></svg>
+          {plan.itinerary.map((item, index) => { const points = [{left:'12%',top:'69%'},{left:'38%',top:'53%'},{left:'61%',top:'28%'},{left:'84%',top:'16%'}]; return <div className="map-stop" style={points[index]} key={item.day}><span>{index + 1}</span><small>{item.title}</small></div> })}
+          <div className="map-legend"><span><i className="car-dot"/> Suggested route</span><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(plan.place)}`} target="_blank" rel="noreferrer">Open destination in Google Maps ↗</a></div>
+        </div>
+        <div className="travel-summary"><span className="eyebrow light">Your travel style</span><h3>Built around your preferences</h3><dl><div><dt>Flight</dt><dd>{plan.preferences.flightTime} · {plan.preferences.maxStops}</dd></div><div><dt>Stay</dt><dd>{plan.preferences.stayTypes.join(' or ') || 'Any stay type'}<small>{plan.preferences.locationPriority}</small></dd></div><div><dt>Transportation</dt><dd>{plan.preferences.transportModes.join(' + ') || 'Best available option'}<small>Up to {plan.preferences.maxDrive} hours driving per day</small></dd></div></dl></div>
+      </div>
+      <div className="leg-strip">{['Airport → stay', 'Stay → local highlights', 'Highlights → main excursion'].map((leg, i) => <div key={leg}><span>{i + 1}</span><b>{leg}</b><small>{i === 0 ? '20 min transit · 11 min drive' : i === 1 ? '0.8 mi · 17 min walk' : '42 mi · 55 min drive'}</small></div>)}</div>
       <div className="results-grid">
         <div className="timeline"><h3>Your day-by-day route</h3>{plan.itinerary.map((item, i) => { const Icon = item.icon; return <article key={item.day}><div className="day-dot">{i+1}</div><div className="day-copy"><small>{item.day}</small><h4>{item.title}</h4><p>{item.detail}</p><span>{item.tag}</span></div><Icon className="day-icon"/></article>})}</div>
         <aside><h3>Best-fit estimates</h3>{plan.picks.map(p => { const Icon=p.icon; return <div className="pick" key={p.type}><div className="pick-icon"><Icon/></div><div><small>{p.type}</small><b>{p.name}</b><span>{p.meta}</span><em><Star size={12} fill="currentColor"/> {p.note}</em></div><strong>{p.price}</strong></div>})}<button type="button">Compare sample options <ArrowRight size={16}/></button><p className="disclaimer"><b>Demo estimates—not live prices.</b> Bookable links and current prices will be added through approved travel data partners.</p></aside>
