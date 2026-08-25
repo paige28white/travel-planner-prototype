@@ -1,0 +1,15 @@
+.pick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--orange);
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: none;
+  margin-top: 7px;
+}
+
+.pick-link:hover {
+  color: var(--pine);
+  text-decoration: underline;
+}
