@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { ArrowRight, CalendarDays, Car, Check, ChevronDown, CircleDollarSign, MapPin, Menu, Mountain, Plane, Search, Sparkles, Star, TentTree, X } from 'lucide-react'
+import { ArrowRight, BedDouble, CalendarDays, Car, Check, ChevronDown, CircleDollarSign, MapPin, Menu, Mountain, Plane, Plus, Search, Sparkles, Star, TentTree, X } from 'lucide-react'
 import { airports } from './data/airports'
 import { activities, activityCategories, searchActivities } from './data/activities'
 import { createGoogleFlightsUrl } from './utils/googleFlights'
@@ -13,45 +13,66 @@ const destinationPlans = {
   SAN: { title: 'Four easygoing days in San Diego', place: 'San Diego', route: ['Arrive & sunset cliffs', 'La Jolla coast day', 'Balboa Park & neighborhoods', 'Beach morning & departure'], details: ['Check in and start with a coastal sunset and casual dinner.', 'Kayak, snorkel, watch wildlife, or stroll the coves at your own pace.', 'Mix gardens and museums with a neighborhood food crawl.', 'Choose one last beach walk or brunch before heading home.'], stay: 'Coastal midrange hotel', experience: 'La Jolla kayak tour', base: 1460 },
 }
 
+function addDays(date, days) {
+  const value = new Date(`${date}T12:00:00`)
+  value.setDate(value.getDate() + days)
+  return value.toISOString().slice(0, 10)
+}
+
 function buildSamplePlan(destination, origin, selected, budget, preferences = {}) {
-  const code = destination.match(/—\s*([A-Z]{3})/)?.[1] || 'ANC'
-  const template = destinationPlans[code] || { title: `Four days around ${destination.split(',')[0] || 'your destination'}`, place: destination.split(',')[0] || 'Your destination', route: ['Arrive & get oriented', 'Local highlights day', 'Signature adventure', 'Slow morning & departure'], details: ['Check in, explore nearby, and begin with an easy local favorite.', 'Combine the area’s most-loved sights with food and time to wander.', `Build today around ${selected.slice(0, 2).join(' and ') || 'your favorite activities'}.`, 'Keep the final morning flexible before heading home.'], stay: 'Top-rated moderate stay', experience: selected[0] ? `Highly rated ${selected[0].toLowerCase()} experience` : 'Traveler-favorite excursion', base: 1650 }
-  const target = Math.max(780, Math.min(template.base, budget - 75))
-  const flight = Math.round(target * .25)
-  const stay = Math.round(target * .36)
-  const car = Math.round(target * .17)
-  const experience = target - flight - stay - car
-  const originCode = origin.match(/—\s*([A-Z]{3})/)?.[1] || 'USA'
+  const code = destination.match(/—\s*([A-Z]{3})/)?.[1] || 'TRIP'
+  const template = destinationPlans[code] || { title: `Four days around ${destination.split(',')[0] || 'your destination'}`, place: destination.split(',')[0] || 'Your destination', route: ['Arrive & get oriented', 'Local highlights day', 'Signature adventure', 'Slow morning & departure'], details: ['Settle in, explore nearby, and begin with an easy local favorite.', 'Combine the area’s most-loved sights with food and time to wander.', `Build today around ${selected.slice(0, 2).join(' and ') || 'your favorite activities'}.`, 'Keep the final morning flexible before heading home.'], stay: 'Top-rated moderate stay', experience: selected[0] ? `Highly rated ${selected[0].toLowerCase()} experience` : 'Traveler-favorite excursion', base: 1650 }
+  const target = Math.max(500, Math.min(template.base, budget - 75))
+  const needFlight = preferences.needFlight !== false
+  const needLodging = preferences.needLodging !== false
+  const weights = { flight: needFlight ? .25 : 0, stay: needLodging ? .36 : 0, car: .17, experience: .22 }
+  const weightTotal = Object.values(weights).reduce((sum, value) => sum + value, 0)
+  const costs = Object.fromEntries(Object.entries(weights).map(([key, value]) => [key, Math.round(target * value / weightTotal)]))
+  costs.experience += target - Object.values(costs).reduce((sum, value) => sum + value, 0)
+  const originCode = origin.match(/—\s*([A-Z]{3})/)?.[1] || origin.split(',')[0] || 'Your start'
   const checkIn = preferences.checkIn || '2026-09-12'
   const checkOut = preferences.checkOut || '2026-09-15'
   const travelers = preferences.travelers || 2
-  const stayQuery = `${(preferences.stayTypes || []).join(' or ') || 'hotels'} in ${template.place} from ${checkIn} to ${checkOut} for ${travelers} guests`
-  const transportationQuery = `${(preferences.transportModes || []).join(' or ') || 'transportation'} in ${template.place}`
+  const transportationQuery = `${(preferences.transportModes || []).join(' or ') || 'transportation'} from ${originCode} around ${template.place}`
   const experienceQuery = `${template.experience} near ${template.place}`
   const wantsAnyStay = (preferences.stayTypes || []).includes('Anything under budget')
   const wantsHotel = wantsAnyStay || (preferences.stayTypes || []).some(type => ['Hotel', 'Hostel', 'Resort'].includes(type))
   const wantsRental = wantsAnyStay || (preferences.stayTypes || []).some(type => ['Vacation rental', 'Cabin'].includes(type))
-  const stayLinks = [
-    ...(wantsHotel ? [{ label: 'Google Hotels', url: `https://www.google.com/travel/hotels?q=${encodeURIComponent(stayQuery)}&checkin=${checkIn}&checkout=${checkOut}` }] : []),
-    ...(wantsRental ? [
-      { label: 'Airbnb', url: `https://www.airbnb.com/s/${encodeURIComponent(template.place)}/homes?checkin=${checkIn}&checkout=${checkOut}&adults=${travelers}` },
-      { label: 'Vrbo', url: `https://www.vrbo.com/search?destination=${encodeURIComponent(template.place)}&startDate=${checkIn}&endDate=${checkOut}&adults=${travelers}` }
-    ] : [])
+  const lodgingStops = needLodging && preferences.stayStops?.some(stop => stop.place.trim())
+    ? preferences.stayStops.filter(stop => stop.place.trim() && Number(stop.nights) > 0)
+    : (needLodging ? [{ id: 1, place: template.place, nights: 1 }] : [])
+  const totalStayNights = lodgingStops.reduce((sum, stop) => sum + Number(stop.nights), 0) || 1
+  let usedStayBudget = 0
+  let elapsedNights = 0
+  const stayPicks = lodgingStops.map((stop, index) => {
+    const stopCheckIn = addDays(checkIn, elapsedNights)
+    const stopCheckOut = addDays(stopCheckIn, Number(stop.nights))
+    elapsedNights += Number(stop.nights)
+    const isLast = index === lodgingStops.length - 1
+    const stopPrice = isLast ? costs.stay - usedStayBudget : Math.round(costs.stay * Number(stop.nights) / totalStayNights)
+    usedStayBudget += stopPrice
+    const stayQuery = `${(preferences.stayTypes || []).join(' or ') || 'hotels'} in ${stop.place} from ${stopCheckIn} to ${stopCheckOut} for ${travelers} guests`
+    const links = [
+      ...(wantsHotel ? [{ label: 'Google Hotels', url: `https://www.google.com/travel/hotels?q=${encodeURIComponent(stayQuery)}&checkin=${stopCheckIn}&checkout=${stopCheckOut}` }] : []),
+      ...(wantsRental ? [
+        { label: 'Airbnb', url: `https://www.airbnb.com/s/${encodeURIComponent(stop.place)}/homes?checkin=${stopCheckIn}&checkout=${stopCheckOut}&adults=${travelers}` },
+        { label: 'Vrbo', url: `https://www.vrbo.com/search?destination=${encodeURIComponent(stop.place)}&startDate=${stopCheckIn}&endDate=${stopCheckOut}&adults=${travelers}` }
+      ] : [])
+    ]
+    return { type: `Stay ${index + 1}`, name: `${stop.place} · ${stop.nights} ${Number(stop.nights) === 1 ? 'night' : 'nights'}`, meta: `${stopCheckIn} → ${stopCheckOut}`, price: `$${stopPrice}`, note: 'Separate live search for this stop', icon: MapPin, links: links.length ? links : [{ label: 'Search stays', url: `https://www.google.com/travel/search?q=${encodeURIComponent(stayQuery)}` }] }
+  })
+  const picks = [
+    ...(needFlight ? [{ type: 'Flight', name: `${originCode} → ${code}`, meta: `Round trip · ${travelers} travelers`, price: `$${costs.flight}`, note: `${preferences.flightTime} · ${preferences.maxStops}`, icon: Plane, links: [{ label: 'Search live on Google Flights', url: createGoogleFlightsUrl({ origin: originCode, destination: code, departureDate: checkIn, returnDate: checkOut, travelers, flightTime: preferences.flightTime, maxStops: preferences.maxStops }) }] }] : []),
+    ...stayPicks,
+    { type: 'Transportation', name: code === 'JFK' ? 'Transit + rideshare plan' : 'Trip transportation', meta: needFlight ? 'Airport and route estimate' : 'Road-trip and local estimate', price: `$${costs.car}`, note: 'Fits this route', icon: Car, links: [{ label: 'Compare transportation', url: `https://www.google.com/search?q=${encodeURIComponent(transportationQuery)}` }] },
+    { type: 'Experience', name: template.experience, meta: 'Highly rated sample option', price: `$${costs.experience}`, note: 'Matches your interests', icon: Mountain, links: [{ label: 'Find live options', url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(experienceQuery)}` }] },
   ]
   return {
-    ...template,
-    total: target,
-    itinerary: template.route.map((title, i) => ({ day: `Day ${i + 1}`, title, detail: template.details[i], tag: i === 2 ? 'Top pick' : i === 0 ? 'Easy arrival' : i === 3 ? 'Flexible' : selected[i - 1] || 'Explore', icon: [Plane, Car, Mountain, TentTree][i] })),
-    preferences,
-    picks: [
-      { type: 'Flight', name: `${originCode} → ${code}`, meta: `Round trip · ${travelers} travelers`, price: `$${flight}`, note: `${preferences.flightTime} · ${preferences.maxStops}`, icon: Plane, links: [{ label: 'Search live on Google Flights', url: createGoogleFlightsUrl({ origin: originCode, destination: code, departureDate: checkIn, returnDate: checkOut, travelers, flightTime: preferences.flightTime, maxStops: preferences.maxStops }) }] },
-      { type: 'Stay', name: template.stay, meta: `${checkIn} → ${checkOut}`, price: `$${stay}`, note: 'Matches your selected stay types', icon: MapPin, links: stayLinks.length ? stayLinks : [{ label: 'Search stays', url: `https://www.google.com/travel/search?q=${encodeURIComponent(stayQuery)}` }] },
-      { type: 'Transportation', name: code === 'JFK' ? 'Transit + rideshare plan' : 'Compact crossover', meta: 'Trip transportation estimate', price: `$${car}`, note: 'Fits this route', icon: Car, links: [{ label: 'Compare transportation', url: `https://www.google.com/search?q=${encodeURIComponent(transportationQuery)}` }] },
-      { type: 'Experience', name: template.experience, meta: 'Highly rated sample option', price: `$${experience}`, note: 'Matches your interests', icon: Mountain, links: [{ label: 'Find live options', url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(experienceQuery)}` }] },
-    ],
+    ...template, total: target,
+    itinerary: template.route.map((title, i) => ({ day: `Day ${i + 1}`, title, detail: template.details[i], tag: i === 2 ? 'Top pick' : i === 0 ? 'Easy arrival' : i === 3 ? 'Flexible' : selected[i - 1] || 'Explore', icon: [needFlight ? Plane : Car, Car, Mountain, TentTree][i] })),
+    preferences: { ...preferences, stayStops: lodgingStops }, picks,
   }
 }
-
 function Autocomplete({ label, value, onChange, options, placeholder, icon: Icon }) {
   const [open, setOpen] = useState(false)
   const filtered = options.filter(item => item.toLowerCase().includes(value.toLowerCase())).slice(0, 6)
@@ -71,6 +92,9 @@ export default function App() {
   const [checkIn, setCheckIn] = useState('2026-09-12')
   const [checkOut, setCheckOut] = useState('2026-09-15')
   const [travelers, setTravelers] = useState(2)
+  const [needFlight, setNeedFlight] = useState(true)
+  const [needLodging, setNeedLodging] = useState(true)
+  const [stayStops, setStayStops] = useState([{ id: 1, place: 'Anchorage, AK', nights: 3 }])
   const [selected, setSelected] = useState(['Hiking', 'Fjords & glaciers', 'Wildlife watching'])
   const [activitySearch, setActivitySearch] = useState('')
   const [showActivities, setShowActivities] = useState(false)
@@ -86,6 +110,11 @@ export default function App() {
   const [mobileNav, setMobileNav] = useState(false)
   const resultsRef = useRef(null)
   const visibleActivities = useMemo(() => searchActivities(activitySearch), [activitySearch])
+  const tripNights = Math.max(1, Math.round((new Date(checkOut) - new Date(checkIn)) / 86400000) || 1)
+  const plannedNights = stayStops.reduce((sum, stop) => sum + Number(stop.nights || 0), 0)
+  const updateStayStop = (id, field, value) => setStayStops(current => current.map(stop => stop.id === id ? { ...stop, [field]: field === 'nights' ? Math.max(1, Number(value)) : value } : stop))
+  const addStayStop = () => setStayStops(current => [...current, { id: Date.now(), place: '', nights: 1 }])
+  const removeStayStop = id => setStayStops(current => current.filter(stop => stop.id !== id))
   const toggleActivity = activity => setSelected(current => current.includes(activity) ? current.filter(a => a !== activity) : [...current, activity])
   const toggleChoice = (value, setter) => setter(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value])
   const showPlanner = () => { setView('planner'); window.location.hash = 'planner'; setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 20) }
@@ -93,7 +122,7 @@ export default function App() {
     event.preventDefault()
     setGenerated(false)
     setTimeout(() => {
-      setPlan(buildSamplePlan(destination, origin, selected, budget, { flightTime, maxStops, stayTypes, locationPriority, transportModes, maxDrive, checkIn, checkOut, travelers }))
+      setPlan(buildSamplePlan(destination, origin, selected, budget, { needFlight, needLodging, stayStops, flightTime, maxStops, stayTypes, locationPriority, transportModes, maxDrive, checkIn, checkOut, travelers }))
       setGenerated(true)
       setView('results')
       window.location.hash = 'trip-results'
@@ -127,37 +156,55 @@ export default function App() {
     <section className="planner-wrap" id="planner">
       <div className="section-heading"><div><span className="step">01</span><h2>Start with the basics</h2></div><p>Change anything—this sample is ready to explore.</p></div>
       <form className="planner" onSubmit={submitTrip}>
-        <div className="grid two">
-          <Autocomplete label="Leaving from" value={origin} onChange={setOrigin} options={airports} placeholder="City or airport" icon={Plane}/>
-          <Autocomplete label="Going to" value={destination} onChange={setDestination} options={airports} placeholder="City or airport" icon={MapPin}/>
+        <div className="trip-needs" aria-label="Trip booking needs">
+          <button type="button" className={needFlight ? 'active' : ''} onClick={() => setNeedFlight(value => !value)}><Plane size={20}/><span><b>{needFlight ? 'I need a flight' : 'No flight needed'}</b><small>{needFlight ? 'Include airports, flights and airfare' : 'Road trip or starting locally'}</small></span><i>{needFlight ? <Check size={14}/> : 'Off'}</i></button>
+          <button type="button" className={needLodging ? 'active' : ''} onClick={() => setNeedLodging(value => !value)}><BedDouble size={20}/><span><b>{needLodging ? 'I need places to stay' : 'No lodging needed'}</b><small>{needLodging ? 'Hotels, rentals, hostels and more' : 'Staying with friends or already arranged'}</small></span><i>{needLodging ? <Check size={14}/> : 'Off'}</i></button>
         </div>
+        {needFlight ? <div className="grid two">
+          <Autocomplete label="Flying from" value={origin} onChange={setOrigin} options={airports} placeholder="City or airport" icon={Plane}/>
+          <Autocomplete label="Flying into" value={destination} onChange={setDestination} options={airports} placeholder="City or airport" icon={MapPin}/>
+        </div> : <div className="grid two">
+          <label className="field"><span>Road trip starts in</span><div className="input-shell"><Car size={18}/><input value={origin} onChange={e => setOrigin(e.target.value)} placeholder="City, state"/></div></label>
+          <label className="field"><span>Main trip area</span><div className="input-shell"><MapPin size={18}/><input value={destination} onChange={e => setDestination(e.target.value)} placeholder="City, state"/></div></label>
+        </div>}
         <div className="grid three">
-          <label className="field"><span>Dates</span><div className="input-shell date-pair"><CalendarDays size={18}/><input aria-label="Check-in date" type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)}/><b>to</b><input aria-label="Check-out date" type="date" value={checkOut} min={checkIn} onChange={e => setCheckOut(e.target.value)}/></div></label>
+          <label className="field"><span>Trip dates</span><div className="input-shell date-pair"><CalendarDays size={18}/><input aria-label="Start date" type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)}/><b>to</b><input aria-label="End date" type="date" value={checkOut} min={checkIn} onChange={e => setCheckOut(e.target.value)}/></div></label>
           <label className="field"><span>Travelers</span><div className="input-shell"><span className="person">●</span><select value={travelers} onChange={e => setTravelers(Number(e.target.value))}><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select><span>people</span></div></label>
-          <label className="field"><span>Stay style</span><div className="input-shell"><TentTree size={18}/><select defaultValue="Moderate"><option>Budget</option><option>Moderate</option><option>Comfort</option><option>Luxury</option></select></div></label>
+          <label className="field"><span>Comfort level</span><div className="input-shell"><TentTree size={18}/><select defaultValue="Moderate"><option>Budget</option><option>Moderate</option><option>Comfort</option><option>Luxury</option></select></div></label>
         </div>
 
+        {needLodging && <div className="stay-route-block">
+          <div className="interest-title"><div><span className="step">02</span><h2>Where will you stay?</h2></div><span>Your airport and overnight stops can be completely different</span></div>
+          <div className="stay-route-list">{stayStops.map((stop, index) => <div className="stay-stop-row" key={stop.id}>
+            <span className="stay-number">{index + 1}</span>
+            <label><small>Place, town or neighborhood</small><div className="input-shell"><MapPin size={17}/><input value={stop.place} onChange={e => updateStayStop(stop.id, 'place', e.target.value)} placeholder="e.g. Seward, AK"/></div></label>
+            <label className="nights-field"><small>Nights</small><div className="input-shell"><BedDouble size={17}/><input type="number" min="1" max="30" value={stop.nights} onChange={e => updateStayStop(stop.id, 'nights', e.target.value)}/></div></label>
+            {stayStops.length > 1 && <button type="button" className="remove-stay" onClick={() => removeStayStop(stop.id)} aria-label={`Remove stay ${index + 1}`}><X size={18}/></button>}
+          </div>)}</div>
+          <div className="stay-route-footer"><button type="button" className="add-stay" onClick={addStayStop}><Plus size={17}/> Add another place</button><span className={plannedNights === tripNights ? 'nights-match' : 'nights-warning'}>{plannedNights} of {tripNights} trip nights planned {plannedNights === tripNights ? '✓' : '— adjust nights or dates'}</span></div>
+        </div>}
+
         <div className="interest-block">
-          <div className="interest-title"><div><span className="step">02</span><h2>I want to…</h2></div><span>Choose as many as you like</span></div>
+          <div className="interest-title"><div><span className="step">03</span><h2>I want to…</h2></div><span>Choose as many as you like</span></div>
           <button type="button" className="activity-search" onClick={() => setShowActivities(!showActivities)}><Search size={18}/><span>{selected.length ? `${selected.length} activities selected` : 'Search hundreds of things to do'}</span><ChevronDown size={18}/></button>
           <div className="chips">{selected.map(a => <button type="button" key={a} onClick={() => toggleActivity(a)}>{a}<X size={14}/></button>)}</div>
           {showActivities && <div className="activity-panel"><div className="panel-search"><Search size={16}/><input autoFocus value={activitySearch} onChange={e => setActivitySearch(e.target.value)} placeholder="Try dancing, pottery, massage, hiking…"/></div><div className="activity-summary">{activitySearch ? `${visibleActivities.length} matching ideas` : `${activities.length} ideas across ${activityCategories.length} categories`}</div><div className="activity-grid">{visibleActivities.map(a => <button type="button" className={selected.includes(a) ? 'selected' : ''} onClick={() => toggleActivity(a)} key={a}>{selected.includes(a) && <Check size={14}/>} {a}</button>)}</div></div>}
         </div>
 
         <div className="preference-block">
-          <div className="interest-title"><div><span className="step">03</span><h2>How do you like to travel?</h2></div><span>These help us choose—not just find—the best options</span></div>
+          <div className="interest-title"><div><span className="step">04</span><h2>How do you like to travel?</h2></div><span>These help us choose—not just find—the best options</span></div>
           <div className="preference-grid">
-            <div className="preference-group"><b>Flight timing</b><div className="choice-row">{['Daytime', 'Red-eye is okay', 'Early morning', 'Cheapest time'].map(item => <button type="button" className={flightTime === item ? 'active' : ''} onClick={() => setFlightTime(item)} key={item}>{item}</button>)}</div></div>
-            <label className="preference-group"><b>Flight stops</b><select value={maxStops} onChange={e => setMaxStops(e.target.value)}><option>Nonstop only</option><option>1 stop max</option><option>Any number of stops</option></select></label>
-            <div className="preference-group wide"><b>Where would you stay?</b><div className="choice-row">{['Hotel', 'Vacation rental', 'Hostel', 'Resort', 'Cabin', 'Camping / glamping', 'Anything under budget'].map(item => <button type="button" className={stayTypes.includes(item) ? 'active' : ''} onClick={() => toggleChoice(item, setStayTypes)} key={item}>{item}</button>)}</div></div>
-            <label className="preference-group"><b>Location priority</b><select value={locationPriority} onChange={e => setLocationPriority(e.target.value)}><option>Close to activities</option><option>Walkable neighborhood</option><option>Near nightlife & food</option><option>Near public transit</option><option>Scenic & quiet</option><option>Cheapest reasonable option</option></select></label>
+            {needFlight && <><div className="preference-group"><b>Flight timing</b><div className="choice-row">{['Daytime', 'Red-eye is okay', 'Early morning', 'Cheapest time'].map(item => <button type="button" className={flightTime === item ? 'active' : ''} onClick={() => setFlightTime(item)} key={item}>{item}</button>)}</div></div>
+            <label className="preference-group"><b>Flight stops</b><select value={maxStops} onChange={e => setMaxStops(e.target.value)}><option>Nonstop only</option><option>1 stop max</option><option>Any number of stops</option></select></label></>}
+            {needLodging && <><div className="preference-group wide"><b>What kind of stay?</b><div className="choice-row">{['Hotel', 'Vacation rental', 'Hostel', 'Resort', 'Cabin', 'Camping / glamping', 'Anything under budget'].map(item => <button type="button" className={stayTypes.includes(item) ? 'active' : ''} onClick={() => toggleChoice(item, setStayTypes)} key={item}>{item}</button>)}</div></div>
+            <label className="preference-group"><b>Location priority</b><select value={locationPriority} onChange={e => setLocationPriority(e.target.value)}><option>Close to activities</option><option>Walkable neighborhood</option><option>Near nightlife & food</option><option>Near public transit</option><option>Scenic & quiet</option><option>Cheapest reasonable option</option></select></label></>}
             <div className="preference-group wide"><b>Getting around</b><div className="choice-row">{['Rental car', 'Public transit', 'Rideshare', 'Walking', 'Biking', 'Avoid driving'].map(item => <button type="button" className={transportModes.includes(item) ? 'active' : ''} onClick={() => toggleChoice(item, setTransportModes)} key={item}>{item}</button>)}</div></div>
             <div className="preference-group drive-limit"><b>Maximum driving per day <span>{maxDrive} {maxDrive === 1 ? 'hour' : 'hours'}</span></b><input aria-label="Maximum driving time per day" type="range" min="1" max="6" value={maxDrive} onChange={e => setMaxDrive(Number(e.target.value))}/></div>
           </div>
         </div>
 
         <div className="budget-row">
-          <div><span className="step">04</span><div><h2>Your total trip budget</h2><p>For flights, stay, transportation and activities</p></div></div>
+          <div><span className="step">05</span><div><h2>Your total trip budget</h2><p>Only includes the parts of the trip you need</p></div></div>
           <output>${budget.toLocaleString()}</output>
           <input aria-label="Trip budget" type="range" min="800" max="5000" step="100" value={budget} onChange={e => setBudget(Number(e.target.value))}/>
           <div className="range-labels"><span>$800</span><span>$5,000+</span></div>
@@ -179,9 +226,10 @@ export default function App() {
           {plan.itinerary.map((item, index) => { const points = [{left:'12%',top:'69%'},{left:'38%',top:'53%'},{left:'61%',top:'28%'},{left:'84%',top:'16%'}]; return <div className="map-stop" style={points[index]} key={item.day}><span>{index + 1}</span><small>{item.title}</small></div> })}
           <div className="map-legend"><span><i className="car-dot"/> Suggested route</span><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(plan.place)}`} target="_blank" rel="noreferrer">Open destination in Google Maps ↗</a></div>
         </div>
-        <div className="travel-summary"><span className="eyebrow light">Your travel style</span><h3>Built around your preferences</h3><dl><div><dt>Flight</dt><dd>{plan.preferences.flightTime} · {plan.preferences.maxStops}</dd></div><div><dt>Stay</dt><dd>{plan.preferences.stayTypes.join(' or ') || 'Any stay type'}<small>{plan.preferences.locationPriority}</small></dd></div><div><dt>Transportation</dt><dd>{plan.preferences.transportModes.join(' + ') || 'Best available option'}<small>Up to {plan.preferences.maxDrive} hours driving per day</small></dd></div></dl></div>
+        <div className="travel-summary"><span className="eyebrow light">Your travel style</span><h3>Built around your preferences</h3><dl>{plan.preferences.needFlight ? <div><dt>Flight</dt><dd>{plan.preferences.flightTime} · {plan.preferences.maxStops}</dd></div> : <div><dt>Flight</dt><dd>Not needed<small>Road trip or local start</small></dd></div>}{plan.preferences.needLodging ? <div><dt>Stay route</dt><dd>{plan.preferences.stayTypes.join(' or ') || 'Any stay type'}<small>{plan.preferences.stayStops.map(stop => `${stop.place} (${stop.nights}n)`).join(' → ')}</small></dd></div> : <div><dt>Stay</dt><dd>Not needed<small>Already arranged or staying with friends</small></dd></div>}<div><dt>Transportation</dt><dd>{plan.preferences.transportModes.join(' + ') || 'Best available option'}<small>Up to {plan.preferences.maxDrive} hours driving per day</small></dd></div></dl></div>
       </div>
-      <div className="leg-strip">{['Airport → stay', 'Stay → local highlights', 'Highlights → main excursion'].map((leg, i) => <div key={leg}><span>{i + 1}</span><b>{leg}</b><small>{i === 0 ? '20 min transit · 11 min drive' : i === 1 ? '0.8 mi · 17 min walk' : '42 mi · 55 min drive'}</small></div>)}</div>
+      {plan.preferences.needLodging && <div className="result-stay-route"><span>Overnight route</span>{plan.preferences.stayStops.map((stop, index) => <div key={stop.id}><i>{index + 1}</i><b>{stop.place}</b><small>{stop.nights} {Number(stop.nights) === 1 ? 'night' : 'nights'}</small>{index < plan.preferences.stayStops.length - 1 && <ArrowRight size={16}/>}</div>)}</div>}
+      <div className="leg-strip">{(plan.preferences.needFlight ? ['Airport → first stop', 'Stay route → local highlights', 'Highlights → main excursion'] : ['Starting point → first stop', 'Local route → highlights', 'Highlights → main excursion']).map((leg, i) => <div key={leg}><span>{i + 1}</span><b>{leg}</b><small>{i === 0 ? 'Route timing estimate' : i === 1 ? 'Distance options coming next' : 'Open in Google Maps'}</small></div>)}</div>
       <div className="results-grid">
         <div className="timeline"><h3>Your day-by-day route</h3>{plan.itinerary.map((item, i) => { const Icon = item.icon; return <article key={item.day}><div className="day-dot">{i+1}</div><div className="day-copy"><small>{item.day}</small><h4>{item.title}</h4><p>{item.detail}</p><span>{item.tag}</span></div><Icon className="day-icon"/></article>})}</div>
         <aside><h3>Best-fit estimates</h3>{plan.picks.map(p => { const Icon=p.icon; return <div className="pick" key={p.type}><div className="pick-icon"><Icon/></div><div><small>{p.type}</small><b>{p.name}</b><span>{p.meta}</span><em><Star size={12} fill="currentColor"/> {p.note}</em><div className="pick-links">{p.links.map(link => <a className="pick-link" href={link.url} target="_blank" rel="noreferrer" key={link.label}>{link.label} <ArrowRight size={11}/></a>)}</div></div><strong>{p.price}</strong></div>})}<p className="disclaimer"><b>Prices shown here are still planning estimates.</b> External links open current searches with your trip details. Licensed APIs will bring live prices into these cards later.</p></aside>
