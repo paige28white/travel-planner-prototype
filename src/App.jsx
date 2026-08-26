@@ -140,7 +140,7 @@ function buildSamplePlan(destination, origin, selected, budget, preferences = {}
     const liveUrl = flightLegs.length === 1 && leg.initial
       ? createGoogleFlightsUrl({ origin: originCode, destination: code, departureDate: checkIn, returnDate: checkOut, travelers, flightTime: preferences.flightTime, maxStops: preferences.maxStops })
       : `https://www.google.com/travel/flights?q=${encodeURIComponent(`one way flights from ${fromCode} to ${toCode} on ${leg.date} for ${travelers} travelers`)}`
-    return { type: `Flight ${index + 1}`, name: `${leg.from.split('·')[0].trim()} → ${leg.to.split('·')[0].trim()}`, meta: `${leg.date} · ${travelers} travelers`, price: `${legPrice}`, estimate: true, note: `${preferences.flightTime} · ${preferences.maxStops}`, icon: Plane, links: [{ label: 'View matching flights & live prices', url: liveUrl }] }
+    return { type: `Flight ${index + 1}`, name: `${leg.from.split('·')[0].trim()} → ${leg.to.split('·')[0].trim()}`, meta: `${leg.date} · ${travelers} travelers`, price: `$${legPrice}`, estimate: true, note: `${preferences.flightTime} · ${preferences.maxStops}`, icon: Plane, links: [{ label: 'View matching flights & live prices', url: liveUrl }] }
   })
   let usedStayBudget = 0
   let elapsedNights = 0
@@ -158,14 +158,14 @@ function buildSamplePlan(destination, origin, selected, budget, preferences = {}
         { label: 'Vrbo', url: `https://www.vrbo.com/search?destination=${encodeURIComponent(stop.place)}&startDate=${stopCheckIn}&endDate=${stopCheckOut}&adults=${travelers}` }
       ] : [])
     ]
-    return { type: `Lodging budget ${index + 1}`, name: `${stop.place} · ${stop.nights} ${Number(stop.nights) === 1 ? 'night' : 'nights'}`, meta: `${stopCheckIn} → ${stopCheckOut}`, price: `${stopPrice}`, note: `Planning allowance · about ${Math.round(stopPrice / Number(stop.nights))} per night`, icon: MapPin, links: links.length ? links : [{ label: 'Search stays', url: `https://www.google.com/travel/search?q=${encodeURIComponent(stayQuery)}` }] }
+    return { type: `Lodging budget ${index + 1}`, name: `${stop.place} · ${stop.nights} ${Number(stop.nights) === 1 ? 'night' : 'nights'}`, meta: `${stopCheckIn} → ${stopCheckOut}`, price: `$${stopPrice}`, note: `Typical ${preferences.comfortLevel?.toLowerCase() || 'moderate'} planning rate · $${nightlyRate}/room/night × ${rooms} ${rooms === 1 ? 'room' : 'rooms'}`, icon: MapPin, links: links.length ? links : [{ label: 'Search stays', url: `https://www.google.com/travel/search?q=${encodeURIComponent(stayQuery)}` }] }
   })
   const picks = [
     ...flightPicks,
     ...stayPicks,
-    { type: 'Food', name: preferences.mealPlan || 'Mix of groceries & restaurants', meta: `${mealRate} per person/day · ${travelers} travelers · ${tripDays} days`, price: `${costs.food}`, note: 'Meal planning estimate including tax and tips', icon: CircleDollarSign, links: [{ label: 'Browse restaurant suggestions below', url: '#food-recommendations' }] },
-    { type: 'Transportation', name: code === 'JFK' ? 'Transit + rideshare plan' : 'Trip transportation', meta: needFlight ? 'Airport and route estimate' : 'Road-trip and local estimate', price: `${costs.car}`, note: 'Calculated from trip length and selected transportation', icon: Car, links: [{ label: 'Compare transportation', url: `https://www.google.com/search?q=${encodeURIComponent(transportationQuery)}` }] },
-    { type: 'Experience', name: template.experience, meta: `${preferences.activitySpend || 'Mix of free & paid'} · ${travelers} travelers`, price: `${costs.experience}`, note: 'Daily activity allowance, not a required spend', icon: Mountain, links: [{ label: 'Find live options', url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(experienceQuery)}` }] },
+    { type: 'Food', name: preferences.mealPlan || 'Mix of groceries & restaurants', meta: `$${mealRate} per person/day · ${travelers} travelers · ${tripDays} days`, price: `$${costs.food}`, note: 'Meal planning estimate including tax and tips', icon: CircleDollarSign, links: [{ label: 'Browse restaurant suggestions below', url: '#food-recommendations' }] },
+    { type: 'Transportation', name: code === 'JFK' ? 'Transit + rideshare plan' : 'Trip transportation', meta: needFlight ? 'Airport and route estimate' : 'Road-trip and local estimate', price: `$${costs.car}`, note: 'Calculated from trip length and selected transportation', icon: Car, links: [{ label: 'Compare transportation', url: `https://www.google.com/search?q=${encodeURIComponent(transportationQuery)}` }] },
+    { type: 'Experience', name: template.experience, meta: `${preferences.activitySpend || 'Mix of free & paid'} · ${travelers} travelers`, price: `$${costs.experience}`, note: 'Daily activity allowance, not a required spend', icon: Mountain, links: [{ label: 'Find live options', url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(experienceQuery)}` }] },
   ]
   let itineraryDay = 1
   const stopItinerary = lodgingStops.map((stop, index) => {
@@ -231,7 +231,8 @@ function haversineMiles(from, to) {
 
 async function buildRouteMetrics(origin, destination, stays, needFlight, returnToStart, travelers) {
   const raw = []
-  const add = (from, to, mode) => { if (from && to && from.trim() !== to.trim()) raw.push({ from, to, mode }) }
+  const normalize = label => label.split('—')[0].split('·')[0].trim().toLowerCase()
+  const add = (from, to, mode) => { if (from && to && normalize(from) !== normalize(to)) raw.push({ from, to, mode }) }
   if (needFlight) {
     add(origin, destination, 'Flight')
     if (stays[0]?.place) add(destination, stays[0].place, 'Driving')
@@ -335,6 +336,7 @@ export default function App() {
   const [plan, setPlan] = useState(null)
   const [view, setView] = useState('planner')
   const [mobileNav, setMobileNav] = useState(false)
+  const [copied, setCopied] = useState(false)
   const resultsRef = useRef(null)
   const visibleActivities = useMemo(() => searchActivities(activitySearch), [activitySearch])
   const tripNights = Math.max(1, Math.round((new Date(checkOut) - new Date(checkIn)) / 86400000) || 1)
@@ -364,7 +366,7 @@ export default function App() {
     <nav>
       <a className="brand" href="#top" onClick={showPlanner}><span className="brand-mark"><Mountain size={20}/></span><span>RoamReady<small>working name</small></span></a>
       <div className={`nav-links ${mobileNav ? 'open' : ''}`}><a href="#planner" onClick={showPlanner}>Plan a trip</a>{view === 'planner' && <a href="#how">How it works</a>}{view === 'results' && <a href="#trip-results">Your trip</a>}</div>
-      <button className="nav-cta">My trips</button>
+      <button className="nav-cta share-link" type="button" onClick={async () => { await navigator.clipboard.writeText('https://paige28white.github.io/travel-planner-prototype/'); setCopied(true); setTimeout(() => setCopied(false), 1800) }}>{copied ? <><Check size={15}/> Link copied!</> : 'Copy link'}</button>
       <button className="menu" onClick={() => setMobileNav(!mobileNav)} aria-label="Toggle navigation">{mobileNav ? <X/> : <Menu/>}</button>
     </nav>
 
@@ -458,7 +460,7 @@ export default function App() {
     {view === 'results' && plan && <div className="trip-page" id="trip-results">
       <div className="trip-toolbar"><button type="button" onClick={showPlanner}>← Edit trip details</button><span><Sparkles size={14}/> Your custom trip workspace</span></div>
     <section ref={resultsRef} className={`results ${generated ? 'visible' : ''}`}>
-      <div className="results-head"><div><div className="eyebrow light"><Sparkles size={14}/> Newly built sample plan</div><h2>{plan.title}</h2><p>{origin.split('—')[0]} to {plan.place} · {checkIn} to {checkOut} · {travelers} travelers</p></div><div className="budget-card"><small>Calculated trip estimate</small><b>${plan.total.toLocaleString()}</b><span>Includes {plan.picks.filter(p => p.type.startsWith('Flight')).length ? `${plan.picks.filter(p => p.type.startsWith('Flight')).length} airfare estimate${plan.picks.filter(p => p.type.startsWith('Flight')).length > 1 ? 's' : ''}` : 'no airfare'} · {plan.total <= budget ? `$${(budget - plan.total).toLocaleString()} under` : `$${(plan.total - budget).toLocaleString()} over`} your ${budget.toLocaleString()} limit</span></div></div>
+      <div className="results-head"><div><div className="eyebrow light"><Sparkles size={14}/> Your custom trip plan</div><h2>{plan.title}</h2><p>{origin.split('—')[0]} to {plan.place} · {checkIn} to {checkOut} · {travelers} travelers</p></div><div className="budget-card"><small>Calculated trip estimate</small><b>${plan.total.toLocaleString()}</b><span>Includes {plan.picks.filter(p => p.type.startsWith('Flight')).length ? `${plan.picks.filter(p => p.type.startsWith('Flight')).length} airfare estimate${plan.picks.filter(p => p.type.startsWith('Flight')).length > 1 ? 's' : ''}` : 'no airfare'} · {plan.total <= budget ? `$${(budget - plan.total).toLocaleString()} under` : `$${(plan.total - budget).toLocaleString()} over`} your ${budget.toLocaleString()} limit</span></div></div>
       <div className="route-overview">
         {(() => {
           const airportName = destination.split('·')[0].trim()
@@ -491,13 +493,13 @@ export default function App() {
       {plan.preferences.needLodging && <div className="result-stay-route"><span>Travel & overnight route</span>{plan.preferences.stayStops.map((stop, index) => <div key={stop.id}>{index > 0 && <small className="transfer-label">{stop.travelMode === 'Flight' ? 'Fly to' : 'Travel to'}</small>}<i>{index + 1}</i><b>{stop.place}</b><small>{stop.nights} {Number(stop.nights) === 1 ? 'night' : 'nights'}</small>{index < plan.preferences.stayStops.length - 1 && <ArrowRight size={16}/>}</div>)}</div>}
       <section className="travel-breakdown"><div className="travel-breakdown-head"><div><span className="eyebrow">Leg-by-leg plan</span><h3>How you’ll get from place to place</h3></div><small>Rough planning estimates · live Google Routes data coming next</small></div><div className="travel-leg-list">{plan.preferences.routeMetrics?.map((leg, index) => { const LegIcon = leg.mode === 'Flight' ? Plane : Car; return <article key={`${leg.from}-${leg.to}-${index}`}><div className="leg-icon"><LegIcon size={18}/></div><div className="leg-route"><small>Leg {index + 1} · {leg.mode}</small><b>{leg.from.split('·')[0].trim()} <ArrowRight size={13}/> {leg.to.split('·')[0].trim()}</b></div><dl><div><dt>Distance</dt><dd>{leg.miles ? `${leg.miles.toLocaleString()} mi` : 'Pending'}</dd></div><div><dt>Approx. time</dt><dd>{leg.time}</dd></div><div><dt>Estimated cost</dt><dd>${leg.cost.toLocaleString()}</dd></div></dl></article>})}</div></section>
       <section className="recommendations">
-        <div className="recommendation-heading"><div><span className="eyebrow">Picked for a {plan.preferences.tripOccasion.toLowerCase()}</span><h3>Explore without opening twenty tabs</h3><p>Scroll through suggested sights, activities and restaurants here. These are prototype recommendations; live rankings, hours, ratings and availability will come from a places-data connection.</p></div></div>
+        <div className="recommendation-heading"><div><span className="eyebrow">Picked for a {plan.preferences.tripOccasion.toLowerCase()}</span><h3>Explore without opening twenty tabs</h3><p>Scroll through suggested sights, activities and restaurants here. These are curated starter recommendations. Live rankings, hours, ratings and availability will be added with the places-data connection.</p></div></div>
         <div className="recommendation-group"><div className="rail-title"><Mountain size={18}/><div><b>Top places & things to do</b><small>Popular sights plus matches for your interests</small></div></div><div className="recommendation-rail">{plan.recommendations.sights.map((item, index) => <article key={item.name}><span>{String(index + 1).padStart(2, '0')}</span><h4>{item.name}</h4><p>{item.detail}</p><em>{item.tag}</em></article>)}</div></div>
         <div className="recommendation-group" id="food-recommendations"><div className="rail-title"><span className="food-icon">✦</span><div><b>Places to eat</b><small>Restaurant ideas shaped by this trip’s group and atmosphere</small></div></div><div className="recommendation-rail food-rail">{plan.recommendations.food.map((item, index) => <article key={item.name}><span>{String(index + 1).padStart(2, '0')}</span><h4>{item.name}</h4><p>{item.detail}</p><em>{item.tag}</em></article>)}</div></div>
       </section>
       <div className="results-grid">
         <div className="timeline"><h3>Your day-by-day route</h3>{plan.itinerary.map((item, i) => { const Icon = item.icon; return <article key={item.day}><div className="day-dot">{i+1}</div><div className="day-copy"><small>{item.day}</small><h4>{item.title}</h4><p>{item.detail}</p><span>{item.tag}</span></div><Icon className="day-icon"/></article>})}</div>
-        <aside><div className="estimate-heading"><div><h3>Trip budget estimate</h3><p>Your selected route and booking searches</p></div><span>Planning prices</span></div>{plan.picks.map(p => { const Icon=p.icon; return <div className="pick" key={p.type}><div className="pick-icon"><Icon/></div><div className="pick-content"><small>{p.type}</small><b>{p.name}</b><span>{p.meta}</span><em><Star size={12} fill="currentColor"/> {p.note}</em><div className="pick-links">{p.links.map(link => <a className="pick-link" href={link.url} target="_blank" rel="noreferrer" key={link.label}>{link.label}<ArrowRight size={15}/></a>)}</div></div><strong><small>Estimate</small>{p.price}</strong></div>})}<p className="disclaimer"><b>The dollar amounts above are planning estimates—not prices from Google or a booking site.</b> Use the larger buttons to open searches with your locations, dates and preferences already filled in and see current prices.</p></aside>
+        <aside><div className="estimate-heading"><div><h3>Trip budget estimate</h3><p>Your selected route and booking searches</p></div><span>Planning prices</span></div>{plan.picks.map(p => { const Icon=p.icon; return <div className="pick" key={p.type}><div className="pick-icon"><Icon/></div><div className="pick-content"><small>{p.type}</small><b>{p.name}</b><span>{p.meta}</span><em><Star size={12} fill="currentColor"/> {p.note}</em><div className="pick-links">{p.links.map(link => <a className="pick-link" href={link.url} target="_blank" rel="noreferrer" key={link.label}>{link.label}<ArrowRight size={15}/></a>)}</div></div><strong><small>Estimate</small>{p.price}</strong></div>})}<p className="disclaimer"><b>Planning estimates—not live prices from Google or a booking site.</b> Use the larger buttons to open searches with your locations, dates and preferences already filled in and see current prices.</p></aside>
       </div>
     </section></div>}
     <footer><div className="brand"><span className="brand-mark"><Mountain size={19}/></span><span>RoamReady<small>temporary project name</small></span></div><p>Independent USA travel-planning prototype.</p><span>Made for the road ahead.</span></footer>
