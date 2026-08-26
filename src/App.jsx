@@ -119,15 +119,18 @@ function buildSamplePlan(destination, origin, selected, budget, preferences = {}
   const mealRate = mealRates[preferences.mealPlan] || mealRates['Mix of groceries & restaurants']
   const activityRates = { 'Mostly free': 12, 'Mix of free & paid': 38, 'Ticketed & adventure-heavy': 85 }
   const activityRate = activityRates[preferences.activitySpend] || activityRates['Mix of free & paid']
-  const flightCost = flightLegs.length * travelers * 220
+  const routeMetrics = preferences.routeMetrics || []
+  const flightCost = routeMetrics.filter(leg => leg.mode === 'Flight').reduce((sum, leg) => sum + leg.cost, 0) || flightLegs.length * travelers * 220
   const stayCost = needLodging ? lodgingStops.reduce((sum, stop) => sum + Number(stop.nights) * nightlyRate * rooms, 0) : 0
   const foodCost = mealRate * travelers * tripDays
   const activityCost = activityRate * travelers * Math.max(tripDays - 1, 1)
-  const transportationCost = (preferences.transportModes || []).includes('Rental car')
-    ? 85 * tripDays
+  const betweenStopCost = routeMetrics.filter(leg => leg.mode !== 'Flight').reduce((sum, leg) => sum + leg.cost, 0)
+  const localTransportationCost = (preferences.transportModes || []).includes('Rental car')
+    ? 70 * tripDays
     : (preferences.transportModes || []).includes('Public transit')
-      ? 15 * travelers * tripDays
-      : (preferences.transportModes || []).includes('Rideshare') ? 45 * tripDays : 10 * tripDays
+      ? 10 * travelers * tripDays
+      : (preferences.transportModes || []).includes('Rideshare') ? 30 * tripDays : 0
+  const transportationCost = betweenStopCost + localTransportationCost
   const costs = { flight: flightCost, stay: stayCost, car: transportationCost, experience: activityCost, food: foodCost }
   const estimatedTotal = Object.values(costs).reduce((sum, value) => sum + value, 0)
   const flightPicks = flightLegs.map((leg, index) => {
@@ -203,7 +206,75 @@ function Autocomplete({ label, value, onChange, options, placeholder, icon: Icon
     </div>}
   </label>
 }
-function LocationAutocomplete({ label, value, onChange }) {
+async function geocodeLocation(label) {
+  const query = label.split('—')[0].split('·')[0].trim()
+  if (!query) return null
+  try {
+    const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json&countryCode=US`)
+    const data = await response.json()
+    const place = data.results?.[0]
+    return place ? { latitude: place.latitude, longitude: place.longitude } : null
+  } catch {
+    return null
+  }
+}
+
+function haversineMiles(from, to) {
+  if (!from || !to) return null
+  const radius = 3958.8
+  const radians = value => value * Math.PI / 180
+  const dLat = radians(to.latitude - from.latitude)
+  const dLon = radians(to.longitude - from.longitude)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(radians(from.latitude)) * Math.cos(radians(to.latitude)) * Math.sin(dLon / 2) ** 2
+  return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+async function buildRouteMetrics(origin, destination, stays, needFlight, returnToStart, travelers) {
+  const raw = []
+  const add = (from, to, mode) => { if (from && to && from.trim() !== to.trim()) raw.push({ from, to, mode }) }
+  if (needFlight) {
+    add(origin, destination, 'Flight')
+    if (stays[0]?.place) add(destination, stays[0].place, 'Driving')
+  } else if (stays[0]?.place) {
+    add(origin, stays[0].place, 'Driving')
+  }
+  for (let index = 1; index < stays.length; index += 1) {
+    const previous = stays[index - 1]?.place
+    const stop = stays[index]
+    if (stop.travelMode === 'Flight' && stop.airport) {
+      add(previous, stop.airport, 'Flight')
+      add(stop.airport, stop.place, 'Driving')
+    } else {
+      add(previous, stop.place, stop.travelMode || 'Driving')
+    }
+  }
+  if (returnToStart && stays.length) {
+    const last = stays.at(-1)
+    add(last.place, origin, needFlight || last.travelMode === 'Flight' ? 'Flight' : 'Driving')
+  }
+  return Promise.all(raw.map(async leg => {
+    const [fromCoordinates, toCoordinates] = await Promise.all([geocodeLocation(leg.from), geocodeLocation(leg.to)])
+    const directMiles = haversineMiles(fromCoordinates, toCoordinates)
+    const multiplier = leg.mode === 'Flight' ? 1 : leg.mode === 'Ferry' ? 1.08 : 1.2
+    const miles = directMiles ? Math.max(1, Math.round(directMiles * multiplier)) : null
+    const speeds = { Flight: 500, Driving: 52, Rideshare: 48, Train: 45, 'Public transit': 30, Ferry: 22 }
+    const baseHours = miles ? miles / (speeds[leg.mode] || 45) : null
+    const hours = baseHours === null ? null : baseHours + (leg.mode === 'Flight' ? 2 : 0.2)
+    const costs = {
+      Flight: 220 * travelers,
+      Driving: miles ? Math.max(8, Math.round(miles * .18)) : 0,
+      Rideshare: miles ? Math.max(15, Math.round(miles * 2.05)) : 0,
+      Train: miles ? Math.max(35, Math.round(miles * .25)) * travelers : 0,
+      'Public transit': miles ? Math.max(5, Math.round(miles * .12)) * travelers : 0,
+      Ferry: miles ? Math.max(20, Math.round(miles * .35)) * travelers : 0
+    }
+    const wholeHours = hours === null ? null : Math.floor(hours)
+    const minutes = hours === null ? null : Math.round((hours - wholeHours) * 60 / 5) * 5
+    return { ...leg, miles, time: hours === null ? 'Route data unavailable' : `${wholeHours ? `${wholeHours} hr ` : ''}${minutes ? `${minutes} min` : ''}`.trim(), cost: costs[leg.mode] || 0 }
+  }))
+}
+
+function LocationAutocomplete({ label, value, onChange, icon: Icon = MapPin }) {
   const [open, setOpen] = useState(false)
   const [options, setOptions] = useState([])
   const [loading, setLoading] = useState(false)
@@ -215,7 +286,7 @@ function LocationAutocomplete({ label, value, onChange }) {
       try {
         const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=en&format=json&countryCode=US`)
         const data = await response.json()
-        setOptions((data.results || []).map(place => `${place.name}${place.admin1 ? `, ${place.admin1}` : ''}${place.postcodes?.[0] ? ` ${place.postcodes[0]}` : ''}`).filter((item, index, all) => all.indexOf(item) === index))
+        setOptions((data.results || []).map(place => ({ label: `${place.name}${place.admin1 ? `, ${place.admin1}` : ''}${place.postcodes?.[0] ? ` ${place.postcodes[0]}` : ''}`, latitude: place.latitude, longitude: place.longitude })).filter((item, index, all) => all.findIndex(other => other.label === item.label) === index))
       } catch {
         setOptions([])
       } finally {
@@ -226,10 +297,10 @@ function LocationAutocomplete({ label, value, onChange }) {
   }, [value])
   return <label className="field">
     <span>{label}</span>
-    <div className="input-shell"><Car size={18}/><input value={value} placeholder="Search any U.S. city or enter an address" onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} onChange={event => { onChange(event.target.value); setOpen(true) }}/><ChevronDown size={17}/></div>
+    <div className="input-shell"><Icon size={18}/><input value={value} placeholder="Search any U.S. city or enter an address" onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} onChange={event => { onChange(event.target.value); setOpen(true) }}/><ChevronDown size={17}/></div>
     {open && value.length >= 2 && <div className="dropdown location-dropdown">
       {loading && <span className="location-status">Searching U.S. cities…</span>}
-      {!loading && options.map(item => <button type="button" key={item} onMouseDown={() => { onChange(item); setOpen(false) }}><MapPin size={15}/>{item}</button>)}
+      {!loading && options.map(item => <button type="button" key={item.label} onMouseDown={() => { onChange(item.label, item); setOpen(false) }}><MapPin size={15}/>{item.label}</button>)}
       {!loading && <button type="button" className="use-typed" onMouseDown={() => setOpen(false)}><Check size={15}/>Use “{value}” as typed</button>}
     </div>}
   </label>
@@ -269,7 +340,7 @@ export default function App() {
   const tripNights = Math.max(1, Math.round((new Date(checkOut) - new Date(checkIn)) / 86400000) || 1)
   const plannedNights = stayStops.reduce((sum, stop) => sum + Number(stop.nights || 0), 0)
   const updateStayStop = (id, field, value) => setStayStops(current => current.map(stop => stop.id === id ? { ...stop, [field]: field === 'nights' ? Math.max(1, Number(value)) : value } : stop))
-  const addStayStop = () => setStayStops(current => [...current, { id: Date.now(), place: '', nights: 1, travelMode: 'Drive / transit', airport: '' }])
+  const addStayStop = () => setStayStops(current => [...current, { id: Date.now(), place: '', nights: 1, travelMode: 'Driving', airport: '' }])
   const removeStayStop = id => setStayStops(current => current.filter(stop => stop.id !== id))
   const toggleActivity = activity => setSelected(current => current.includes(activity) ? current.filter(a => a !== activity) : [...current, activity])
   const toggleChoice = (value, setter) => setter(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value])
@@ -277,10 +348,11 @@ export default function App() {
   const submitTrip = event => {
     event.preventDefault()
     setGenerated(false)
-    setTimeout(() => {
+    setTimeout(async () => {
       const tripDestination = needFlight ? destination : (stayStops[0]?.place || origin)
       const tripOccasion = [...tripOccasions, ...(customOccasion.trim() ? [customOccasion.trim()] : [])].join(' + ')
-      setPlan(buildSamplePlan(tripDestination, origin, selected, budget, { needFlight, needLodging, returnToStart, tripOccasion, mealPlan, activitySpend, comfortLevel, stayStops, flightTime, maxStops, stayTypes, locationPriority, transportModes, maxDrive, checkIn, checkOut, travelers }))
+      const routeMetrics = await buildRouteMetrics(origin, tripDestination, needLodging ? stayStops : [], needFlight, returnToStart, travelers)
+      setPlan(buildSamplePlan(tripDestination, origin, selected, budget, { needFlight, needLodging, returnToStart, tripOccasion, mealPlan, activitySpend, comfortLevel, routeMetrics, stayStops, flightTime, maxStops, stayTypes, locationPriority, transportModes, maxDrive, checkIn, checkOut, travelers }))
       setGenerated(true)
       setView('results')
       window.location.hash = 'trip-results'
@@ -337,11 +409,11 @@ export default function App() {
         {needLodging && <div className="stay-route-block">
           <div className="interest-title"><div><span className="step">02</span><h2>Where will you stay?</h2></div><span>Your airport and overnight stops can be completely different</span></div>
           <div className="stay-route-list">{stayStops.map((stop, index) => <div className="stay-stop-card" key={stop.id}>
-            {index > 0 && <div className="transfer-choice"><span>Then travel here by</span><div>{['Drive / transit', 'Flight'].map(mode => <button type="button" className={stop.travelMode === mode ? 'active' : ''} onClick={() => updateStayStop(stop.id, 'travelMode', mode)} key={mode}>{mode === 'Flight' ? <Plane size={15}/> : <Car size={15}/>} {mode}</button>)}</div></div>}
+            {index > 0 && <div className="transfer-choice"><span>Then travel here by</span><div>{['Driving', 'Flight', 'Train', 'Public transit', 'Ferry', 'Rideshare'].map(mode => <button type="button" className={stop.travelMode === mode ? 'active' : ''} onClick={() => updateStayStop(stop.id, 'travelMode', mode)} key={mode}>{mode === 'Flight' ? <Plane size={15}/> : <Car size={15}/>} {mode}</button>)}</div></div>}
             {index > 0 && stop.travelMode === 'Flight' && <div className="transfer-airport"><Autocomplete label="Fly into" value={stop.airport || ''} onChange={value => updateStayStop(stop.id, 'airport', value)} options={airports} placeholder="Choose the arrival airport" icon={Plane}/></div>}
             <div className="stay-stop-row">
               <span className="stay-number">{index + 1}</span>
-              <label><small>{index === 0 ? 'First place you will stay' : 'Next place you will stay'}</small><div className="input-shell"><MapPin size={17}/><input value={stop.place} onChange={e => updateStayStop(stop.id, 'place', e.target.value)} placeholder="e.g. Seward, AK"/></div></label>
+              <LocationAutocomplete label={index === 0 ? 'First place you will stay' : 'Next place you will stay'} value={stop.place} onChange={(value, details) => setStayStops(current => current.map(item => item.id === stop.id ? { ...item, place: value, latitude: details?.latitude, longitude: details?.longitude } : item))}/>
               <label className="nights-field"><small>Nights</small><div className="input-shell"><BedDouble size={17}/><input type="number" min="1" max="30" value={stop.nights} onChange={e => updateStayStop(stop.id, 'nights', e.target.value)}/></div></label>
               {stayStops.length > 1 && <button type="button" className="remove-stay" onClick={() => removeStayStop(stop.id)} aria-label={`Remove stay ${index + 1}`}><X size={18}/></button>}
             </div>
@@ -417,7 +489,7 @@ export default function App() {
         <div className="travel-summary"><span className="eyebrow light">Your travel style</span><h3>Built around your preferences</h3><dl>{plan.preferences.needFlight ? <div><dt>Flight</dt><dd>{plan.preferences.flightTime} · {plan.preferences.maxStops}</dd></div> : <div><dt>Flight</dt><dd>Not needed<small>Road trip or local start</small></dd></div>}{plan.preferences.needLodging ? <div><dt>Stay route</dt><dd>{plan.preferences.stayTypes.join(' or ') || 'Any stay type'}<small>{plan.preferences.stayStops.map(stop => `${stop.place} (${stop.nights}n)`).join(' → ')}</small></dd></div> : <div><dt>Stay</dt><dd>Not needed<small>Already arranged or staying with friends</small></dd></div>}<div><dt>Trip type</dt><dd>{plan.preferences.tripOccasion}<small>{plan.preferences.returnToStart ? 'Returns to starting location' : 'Ends at final stop'}</small></dd></div><div><dt>Transportation</dt><dd>{plan.preferences.transportModes.join(' + ') || 'Best available option'}<small>Up to {plan.preferences.maxDrive} hours driving per day</small></dd></div></dl></div>
       </div>
       {plan.preferences.needLodging && <div className="result-stay-route"><span>Travel & overnight route</span>{plan.preferences.stayStops.map((stop, index) => <div key={stop.id}>{index > 0 && <small className="transfer-label">{stop.travelMode === 'Flight' ? 'Fly to' : 'Travel to'}</small>}<i>{index + 1}</i><b>{stop.place}</b><small>{stop.nights} {Number(stop.nights) === 1 ? 'night' : 'nights'}</small>{index < plan.preferences.stayStops.length - 1 && <ArrowRight size={16}/>}</div>)}</div>}
-      <div className="leg-strip">{(plan.preferences.needFlight ? ['Airport → first stop', 'Stay route → local highlights', 'Highlights → main excursion'] : ['Starting point → first stop', 'Local route → highlights', 'Highlights → main excursion']).map((leg, i) => <div key={leg}><span>{i + 1}</span><b>{leg}</b><small>{i === 0 ? 'Route timing estimate' : i === 1 ? 'Distance options coming next' : 'Open in Google Maps'}</small></div>)}</div>
+      <section className="travel-breakdown"><div className="travel-breakdown-head"><div><span className="eyebrow">Leg-by-leg plan</span><h3>How you’ll get from place to place</h3></div><small>Rough planning estimates · live Google Routes data coming next</small></div><div className="travel-leg-list">{plan.preferences.routeMetrics?.map((leg, index) => { const LegIcon = leg.mode === 'Flight' ? Plane : Car; return <article key={`${leg.from}-${leg.to}-${index}`}><div className="leg-icon"><LegIcon size={18}/></div><div className="leg-route"><small>Leg {index + 1} · {leg.mode}</small><b>{leg.from.split('·')[0].trim()} <ArrowRight size={13}/> {leg.to.split('·')[0].trim()}</b></div><dl><div><dt>Distance</dt><dd>{leg.miles ? `${leg.miles.toLocaleString()} mi` : 'Pending'}</dd></div><div><dt>Approx. time</dt><dd>{leg.time}</dd></div><div><dt>Estimated cost</dt><dd>${leg.cost.toLocaleString()}</dd></div></dl></article>})}</div></section>
       <section className="recommendations">
         <div className="recommendation-heading"><div><span className="eyebrow">Picked for a {plan.preferences.tripOccasion.toLowerCase()}</span><h3>Explore without opening twenty tabs</h3><p>Scroll through suggested sights, activities and restaurants here. These are prototype recommendations; live rankings, hours, ratings and availability will come from a places-data connection.</p></div></div>
         <div className="recommendation-group"><div className="rail-title"><Mountain size={18}/><div><b>Top places & things to do</b><small>Popular sights plus matches for your interests</small></div></div><div className="recommendation-rail">{plan.recommendations.sights.map((item, index) => <article key={item.name}><span>{String(index + 1).padStart(2, '0')}</span><h4>{item.name}</h4><p>{item.detail}</p><em>{item.tag}</em></article>)}</div></div>
