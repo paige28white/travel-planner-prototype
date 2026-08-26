@@ -13,6 +13,64 @@ const destinationPlans = {
   SAN: { title: 'Four easygoing days in San Diego', place: 'San Diego', route: ['Arrive & sunset cliffs', 'La Jolla coast day', 'Balboa Park & neighborhoods', 'Beach morning & departure'], details: ['Check in and start with a coastal sunset and casual dinner.', 'Kayak, snorkel, watch wildlife, or stroll the coves at your own pace.', 'Mix gardens and museums with a neighborhood food crawl.', 'Choose one last beach walk or brunch before heading home.'], stay: 'Coastal midrange hotel', experience: 'La Jolla kayak tour', base: 1460 },
 }
 
+
+const destinationRecommendations = {
+  ANC: {
+    sights: [
+      { name: 'Tony Knowles Coastal Trail', detail: 'Coastal views · walking & biking', tag: 'Scenic' },
+      { name: 'Alaska Native Heritage Center', detail: 'Culture · history · demonstrations', tag: 'Local favorite' },
+      { name: 'Anchorage Museum', detail: 'Art · Alaska history · indoor option', tag: 'Rainy-day pick' },
+      { name: 'Turnagain Arm', detail: 'Wildlife overlooks · scenic drive', tag: 'Day trip' }
+    ],
+    food: [
+      { name: 'Snow City Cafe', detail: 'Breakfast & brunch · downtown', tag: '$$' },
+      { name: "Moose's Tooth", detail: 'Pizza · casual local institution', tag: '$$' },
+      { name: '49th State Brewing', detail: 'Alaska pub food · views', tag: '$$' },
+      { name: 'Spenard Roadhouse', detail: 'Comfort food · neighborhood favorite', tag: '$$' }
+    ]
+  },
+  SEA: {
+    sights: [{ name: 'Pike Place Market', detail: 'Food stalls · shopping · waterfront', tag: 'Iconic' }, { name: 'Kerry Park', detail: 'Skyline viewpoint · sunset', tag: 'Free' }, { name: 'Chihuly Garden and Glass', detail: 'Art · gardens · indoor option', tag: 'Top pick' }, { name: 'Discovery Park', detail: 'Trails · beach · lighthouse', tag: 'Outdoors' }],
+    food: [{ name: 'The Pink Door', detail: 'Italian · Pike Place', tag: '$$$' }, { name: 'Un Bien', detail: 'Caribbean sandwiches · casual', tag: '$$' }, { name: 'Toulouse Petit', detail: 'Brunch · Queen Anne', tag: '$$' }, { name: 'Din Tai Fung', detail: 'Dumplings · group friendly', tag: '$$' }]
+  },
+  DEN: {
+    sights: [{ name: 'Red Rocks Park', detail: 'Trails · views · amphitheatre', tag: 'Top pick' }, { name: 'Denver Art Museum', detail: 'Art · architecture · indoor option', tag: 'Culture' }, { name: 'Union Station', detail: 'Historic hall · food · people watching', tag: 'Easy stop' }, { name: 'Rocky Mountain National Park', detail: 'Alpine scenery · wildlife · hiking', tag: 'Day trip' }],
+    food: [{ name: 'Denver Central Market', detail: 'Food hall · lots of choices', tag: '$$' }, { name: 'Root Down', detail: 'Seasonal American · date night', tag: '$$$' }, { name: 'Snooze', detail: 'Breakfast · casual', tag: '$$' }, { name: 'Safta', detail: 'Israeli cuisine · shareable plates', tag: '$$$' }]
+  },
+  HNL: {
+    sights: [{ name: 'Diamond Head', detail: 'Crater hike · panoramic views', tag: 'Classic' }, { name: 'Bishop Museum', detail: 'Hawaiian culture · natural history', tag: 'Culture' }, { name: 'Hanauma Bay', detail: 'Snorkeling · marine life', tag: 'Reserve ahead' }, { name: 'Kakaʻako murals', detail: 'Street art · cafes · walking', tag: 'Easy stop' }],
+    food: [{ name: 'Helena’s Hawaiian Food', detail: 'Traditional Hawaiian food', tag: '$$' }, { name: 'Koko Head Cafe', detail: 'Island-style brunch', tag: '$$' }, { name: 'Fête', detail: 'Local ingredients · downtown', tag: '$$$' }, { name: 'The Pig and the Lady', detail: 'Vietnamese-inspired · Chinatown', tag: '$$$' }]
+  },
+  JFK: {
+    sights: [{ name: 'Central Park', detail: 'Walking · picnics · landmarks', tag: 'Free' }, { name: 'The Metropolitan Museum of Art', detail: 'World-class art collection', tag: 'Iconic' }, { name: 'Brooklyn Bridge Park', detail: 'Skyline views · waterfront', tag: 'Sunset' }, { name: 'High Line', detail: 'Elevated park · architecture', tag: 'Easy walk' }],
+    food: [{ name: 'Chelsea Market', detail: 'Food hall · many choices', tag: '$$' }, { name: 'Los Tacos No. 1', detail: 'Tacos · quick stop', tag: '$' }, { name: 'Via Carota', detail: 'Italian · romantic', tag: '$$$' }, { name: 'Jacob’s Pickles', detail: 'Comfort food · group friendly', tag: '$$' }]
+  },
+  SAN: {
+    sights: [{ name: 'La Jolla Cove', detail: 'Coast walk · wildlife · kayaking', tag: 'Top pick' }, { name: 'Balboa Park', detail: 'Gardens · museums · architecture', tag: 'All day' }, { name: 'Torrey Pines', detail: 'Coastal hiking · overlooks', tag: 'Outdoors' }, { name: 'Sunset Cliffs', detail: 'Ocean views · sunset', tag: 'Free' }],
+    food: [{ name: 'Morning Glory', detail: 'Brunch · Little Italy', tag: '$$' }, { name: 'The Taco Stand', detail: 'Tacos · casual', tag: '$' }, { name: 'Cesarina', detail: 'Italian · date night', tag: '$$$' }, { name: 'Liberty Public Market', detail: 'Food hall · group friendly', tag: '$$' }]
+  }
+}
+
+function recommendationSet(code, place, occasion) {
+  const known = destinationRecommendations[code]
+  if (known) return known
+  return {
+    sights: [
+      { name: `Top landmarks in ${place}`, detail: `Popular places suited to a ${occasion.toLowerCase()} trip`, tag: 'Explore' },
+      { name: `Outdoor favorites near ${place}`, detail: 'Parks · views · trails', tag: 'Outdoors' },
+      { name: `Local culture in ${place}`, detail: 'Museums · neighborhoods · history', tag: 'Culture' },
+      { name: `Traveler favorites around ${place}`, detail: 'Highly reviewed local experiences', tag: 'Top picks' }
+    ],
+    food: [
+      { name: `Best brunch in ${place}`, detail: `Good fit for a ${occasion.toLowerCase()} trip`, tag: '$$' },
+      { name: `Local favorites in ${place}`, detail: 'Highly reviewed regional food', tag: '$$' },
+      { name: `Special-occasion dining in ${place}`, detail: 'Reservations recommended', tag: '$$$' },
+      { name: `Casual eats in ${place}`, detail: 'Quick · affordable · group friendly', tag: '$' }
+    ]
+  }
+}
+
+
 function addDays(date, days) {
   const value = new Date(`${date}T12:00:00`)
   value.setDate(value.getDate() + days)
@@ -81,7 +139,7 @@ function buildSamplePlan(destination, origin, selected, budget, preferences = {}
         { label: 'Vrbo', url: `https://www.vrbo.com/search?destination=${encodeURIComponent(stop.place)}&startDate=${stopCheckIn}&endDate=${stopCheckOut}&adults=${travelers}` }
       ] : [])
     ]
-    return { type: `Stay ${index + 1}`, name: `${stop.place} · ${stop.nights} ${Number(stop.nights) === 1 ? 'night' : 'nights'}`, meta: `${stopCheckIn} → ${stopCheckOut}`, price: `$${stopPrice}`, note: 'Separate live search for this stop', icon: MapPin, links: links.length ? links : [{ label: 'Search stays', url: `https://www.google.com/travel/search?q=${encodeURIComponent(stayQuery)}` }] }
+    return { type: `Lodging budget ${index + 1}`, name: `${stop.place} · ${stop.nights} ${Number(stop.nights) === 1 ? 'night' : 'nights'}`, meta: `${stopCheckIn} → ${stopCheckOut}`, price: `${stopPrice}`, note: `Planning allowance · about ${Math.round(stopPrice / Number(stop.nights))} per night`, icon: MapPin, links: links.length ? links : [{ label: 'Search stays', url: `https://www.google.com/travel/search?q=${encodeURIComponent(stayQuery)}` }] }
   })
   const picks = [
     ...flightPicks,
@@ -89,9 +147,31 @@ function buildSamplePlan(destination, origin, selected, budget, preferences = {}
     { type: 'Transportation', name: code === 'JFK' ? 'Transit + rideshare plan' : 'Trip transportation', meta: needFlight ? 'Airport and route estimate' : 'Road-trip and local estimate', price: `$${costs.car}`, note: 'Fits this route', icon: Car, links: [{ label: 'Compare transportation', url: `https://www.google.com/search?q=${encodeURIComponent(transportationQuery)}` }] },
     { type: 'Experience', name: template.experience, meta: 'Highly rated sample option', price: `$${costs.experience}`, note: 'Matches your interests', icon: Mountain, links: [{ label: 'Find live options', url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(experienceQuery)}` }] },
   ]
+  let itineraryDay = 1
+  const stopItinerary = lodgingStops.map((stop, index) => {
+    const startDay = itineraryDay
+    itineraryDay += Number(stop.nights)
+    const mode = index === 0 ? (needFlight ? 'Fly' : 'Drive') : (stop.travelMode === 'Flight' ? 'Fly' : 'Travel')
+    return {
+      day: `Day ${startDay}`,
+      title: `${mode} to ${stop.place}`,
+      detail: `Stay ${stop.nights} ${Number(stop.nights) === 1 ? 'night' : 'nights'} and build this stop around ${selected.slice(0, 2).join(' and ').toLowerCase() || 'your selected interests'}.`,
+      tag: index === 0 ? preferences.tripOccasion || 'First stop' : stop.travelMode,
+      icon: mode === 'Fly' ? Plane : Car
+    }
+  })
+  const itinerary = stopItinerary.length ? stopItinerary : template.route.map((title, i) => ({ day: `Day ${i + 1}`, title, detail: template.details[i], tag: selected[i - 1] || 'Explore', icon: [needFlight ? Plane : Car, Car, Mountain, TentTree][i] }))
+  if (preferences.returnToStart !== false) itinerary.push({
+    day: `Day ${Math.max(itineraryDay, 2)}`,
+    title: `Return to ${origin.split('·')[0].trim()}`,
+    detail: `Complete the route from ${lodgingStops.at(-1)?.place || template.place} back to your starting location.`,
+    tag: 'Return trip',
+    icon: needFlight || lodgingStops.at(-1)?.travelMode === 'Flight' ? Plane : Car
+  })
   return {
     ...template, total: target,
-    itinerary: template.route.map((title, i) => ({ day: `Day ${i + 1}`, title, detail: template.details[i], tag: i === 2 ? 'Top pick' : i === 0 ? 'Easy arrival' : i === 3 ? 'Flexible' : selected[i - 1] || 'Explore', icon: [needFlight ? Plane : Car, Car, Mountain, TentTree][i] })),
+    itinerary,
+    recommendations: recommendationSet(code, lodgingStops[0]?.place || template.place, preferences.tripOccasion || 'Just because'),
     preferences: { ...preferences, stayStops: lodgingStops }, picks,
   }
 }
@@ -106,6 +186,11 @@ function Autocomplete({ label, value, onChange, options, placeholder, icon: Icon
     </div>}
   </label>
 }
+const roadLocationSuggestions = [...new Set(airports.map(item => item.split('—')[0].trim()))]
+
+function LocationAutocomplete({ label, value, onChange }) {
+  return <Autocomplete label={label} value={value} onChange={onChange} options={roadLocationSuggestions} placeholder="Start typing a city or enter a full address" icon={Car}/>
+}
 
 export default function App() {
   const [origin, setOrigin] = useState('Los Angeles, CA — LAX · Los Angeles International')
@@ -116,6 +201,8 @@ export default function App() {
   const [travelers, setTravelers] = useState(2)
   const [needFlight, setNeedFlight] = useState(true)
   const [needLodging, setNeedLodging] = useState(true)
+  const [returnToStart, setReturnToStart] = useState(true)
+  const [tripOccasion, setTripOccasion] = useState('Just because')
   const [stayStops, setStayStops] = useState([{ id: 1, place: 'Anchorage, AK', nights: 3, travelMode: 'Start of trip', airport: '' }])
   const [selected, setSelected] = useState(['Hiking', 'Fjords & glaciers', 'Wildlife watching'])
   const [activitySearch, setActivitySearch] = useState('')
@@ -145,7 +232,7 @@ export default function App() {
     setGenerated(false)
     setTimeout(() => {
       const tripDestination = needFlight ? destination : (stayStops[0]?.place || origin)
-      setPlan(buildSamplePlan(tripDestination, origin, selected, budget, { needFlight, needLodging, stayStops, flightTime, maxStops, stayTypes, locationPriority, transportModes, maxDrive, checkIn, checkOut, travelers }))
+      setPlan(buildSamplePlan(tripDestination, origin, selected, budget, { needFlight, needLodging, returnToStart, tripOccasion, stayStops, flightTime, maxStops, stayTypes, locationPriority, transportModes, maxDrive, checkIn, checkOut, travelers }))
       setGenerated(true)
       setView('results')
       window.location.hash = 'trip-results'
@@ -183,14 +270,15 @@ export default function App() {
           <span className="trip-needs-label">Include in this trip</span>
           <button type="button" className={needFlight ? 'active' : ''} aria-pressed={needFlight} onClick={() => setNeedFlight(value => !value)}><span className="need-check">{needFlight && <Check size={13}/>}</span><Plane size={17}/><b>Flights</b></button>
           <button type="button" className={needLodging ? 'active' : ''} aria-pressed={needLodging} onClick={() => setNeedLodging(value => !value)}><span className="need-check">{needLodging && <Check size={13}/>}</span><BedDouble size={17}/><b>Lodging</b></button>
+          <button type="button" className={returnToStart ? 'active' : ''} aria-pressed={returnToStart} onClick={() => setReturnToStart(value => !value)}><span className="need-check">{returnToStart && <Check size={13}/>}</span><Car size={17}/><b>Return to start</b></button>
           <small>{!needFlight && !needLodging ? 'Transportation, activities and route only' : !needFlight ? 'Road trip or local start—no airfare added' : !needLodging ? 'Staying with friends or lodging already arranged' : 'We’ll include both in your plan and budget'}</small>
         </div>
         {needFlight ? <div className="grid two">
           <Autocomplete label="Flying from" value={origin} onChange={setOrigin} options={airports} placeholder="City or airport" icon={Plane}/>
           <Autocomplete label="Flying into" value={destination} onChange={setDestination} options={airports} placeholder="City or airport" icon={MapPin}/>
         </div> : <div className="grid one start-only">
-          <label className="field"><span>Starting from</span><div className="input-shell"><Car size={18}/><input value={origin} onChange={e => setOrigin(e.target.value)} placeholder="City, state or home address"/></div></label>
-          <p>Your first overnight stop below becomes your first destination.</p>
+          <LocationAutocomplete label="Starting location" value={origin} onChange={setOrigin}/>
+          <p>Choose a suggested city or keep typing a complete street address. Your first overnight stop becomes the destination.</p>
         </div>}
         <div className="grid three">
           <label className="field"><span>Trip dates</span><div className="input-shell date-pair"><CalendarDays size={18}/><input aria-label="Start date" type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)}/><b>to</b><input aria-label="End date" type="date" value={checkOut} min={checkIn} onChange={e => setCheckOut(e.target.value)}/></div></label>
@@ -214,6 +302,7 @@ export default function App() {
         </div>}
 
         <div className="interest-block">
+          <div className="occasion-block"><b>What kind of trip is this?</b><div className="choice-row">{['Romantic getaway', 'Family trip', 'Kids included', 'Girls’ trip', 'Friends trip', 'Birthday', 'Solo trip', 'Just because'].map(item => <button type="button" className={tripOccasion === item ? 'active' : ''} onClick={() => setTripOccasion(item)} key={item}>{item}</button>)}</div><small>We’ll use this to shape activities, restaurants, pace and atmosphere.</small></div>
           <div className="interest-title"><div><span className="step">03</span><h2>I want to…</h2></div><span>Choose as many as you like</span></div>
           <button type="button" className="activity-search" onClick={() => setShowActivities(!showActivities)}><Search size={18}/><span>{selected.length ? `${selected.length} activities selected` : 'Search hundreds of things to do'}</span><ChevronDown size={18}/></button>
           <div className="chips">{selected.map(a => <button type="button" key={a} onClick={() => toggleActivity(a)}>{a}<X size={14}/></button>)}</div>
@@ -257,7 +346,8 @@ export default function App() {
             ...(plan.preferences.needLodging ? plan.preferences.stayStops.flatMap((stop, index) => [
               ...(index > 0 && stop.travelMode === 'Flight' && stop.airport ? [{ label: stop.airport.split('·')[0].trim(), detail: 'Flight arrival', icon: 'plane' }] : []),
               { label: stop.place, detail: `${stop.nights} ${Number(stop.nights) === 1 ? 'night' : 'nights'}`, icon: 'stay' }
-            ]) : [])
+            ]) : []),
+            ...(plan.preferences.returnToStart ? [{ label: origin.split('·')[0].trim(), detail: 'Return to start', icon: plan.preferences.needFlight ? 'plane' : 'car' }] : [])
           ]
           const uniqueStops = routeStops.filter((stop, index) => index === 0 || stop.label.toLowerCase() !== routeStops[index - 1].label.toLowerCase())
           const mapDestination = uniqueStops.at(-1)?.label || plan.place
@@ -274,10 +364,15 @@ export default function App() {
             <div className="map-legend"><span><i className="car-dot"/> Airport and overnight stops</span><a href={mapUrl} target="_blank" rel="noreferrer">Open this route in Google Maps <ArrowRight size={13}/></a></div>
           </div>
         })()}
-        <div className="travel-summary"><span className="eyebrow light">Your travel style</span><h3>Built around your preferences</h3><dl>{plan.preferences.needFlight ? <div><dt>Flight</dt><dd>{plan.preferences.flightTime} · {plan.preferences.maxStops}</dd></div> : <div><dt>Flight</dt><dd>Not needed<small>Road trip or local start</small></dd></div>}{plan.preferences.needLodging ? <div><dt>Stay route</dt><dd>{plan.preferences.stayTypes.join(' or ') || 'Any stay type'}<small>{plan.preferences.stayStops.map(stop => `${stop.place} (${stop.nights}n)`).join(' → ')}</small></dd></div> : <div><dt>Stay</dt><dd>Not needed<small>Already arranged or staying with friends</small></dd></div>}<div><dt>Transportation</dt><dd>{plan.preferences.transportModes.join(' + ') || 'Best available option'}<small>Up to {plan.preferences.maxDrive} hours driving per day</small></dd></div></dl></div>
+        <div className="travel-summary"><span className="eyebrow light">Your travel style</span><h3>Built around your preferences</h3><dl>{plan.preferences.needFlight ? <div><dt>Flight</dt><dd>{plan.preferences.flightTime} · {plan.preferences.maxStops}</dd></div> : <div><dt>Flight</dt><dd>Not needed<small>Road trip or local start</small></dd></div>}{plan.preferences.needLodging ? <div><dt>Stay route</dt><dd>{plan.preferences.stayTypes.join(' or ') || 'Any stay type'}<small>{plan.preferences.stayStops.map(stop => `${stop.place} (${stop.nights}n)`).join(' → ')}</small></dd></div> : <div><dt>Stay</dt><dd>Not needed<small>Already arranged or staying with friends</small></dd></div>}<div><dt>Trip type</dt><dd>{plan.preferences.tripOccasion}<small>{plan.preferences.returnToStart ? 'Returns to starting location' : 'Ends at final stop'}</small></dd></div><div><dt>Transportation</dt><dd>{plan.preferences.transportModes.join(' + ') || 'Best available option'}<small>Up to {plan.preferences.maxDrive} hours driving per day</small></dd></div></dl></div>
       </div>
       {plan.preferences.needLodging && <div className="result-stay-route"><span>Travel & overnight route</span>{plan.preferences.stayStops.map((stop, index) => <div key={stop.id}>{index > 0 && <small className="transfer-label">{stop.travelMode === 'Flight' ? 'Fly to' : 'Travel to'}</small>}<i>{index + 1}</i><b>{stop.place}</b><small>{stop.nights} {Number(stop.nights) === 1 ? 'night' : 'nights'}</small>{index < plan.preferences.stayStops.length - 1 && <ArrowRight size={16}/>}</div>)}</div>}
       <div className="leg-strip">{(plan.preferences.needFlight ? ['Airport → first stop', 'Stay route → local highlights', 'Highlights → main excursion'] : ['Starting point → first stop', 'Local route → highlights', 'Highlights → main excursion']).map((leg, i) => <div key={leg}><span>{i + 1}</span><b>{leg}</b><small>{i === 0 ? 'Route timing estimate' : i === 1 ? 'Distance options coming next' : 'Open in Google Maps'}</small></div>)}</div>
+      <section className="recommendations">
+        <div className="recommendation-heading"><div><span className="eyebrow">Picked for a {plan.preferences.tripOccasion.toLowerCase()}</span><h3>Explore without opening twenty tabs</h3><p>Scroll through suggested sights, activities and restaurants here. These are prototype recommendations; live rankings, hours, ratings and availability will come from a places-data connection.</p></div></div>
+        <div className="recommendation-group"><div className="rail-title"><Mountain size={18}/><div><b>Top places & things to do</b><small>Popular sights plus matches for your interests</small></div></div><div className="recommendation-rail">{plan.recommendations.sights.map((item, index) => <article key={item.name}><span>{String(index + 1).padStart(2, '0')}</span><h4>{item.name}</h4><p>{item.detail}</p><em>{item.tag}</em></article>)}</div></div>
+        <div className="recommendation-group"><div className="rail-title"><span className="food-icon">✦</span><div><b>Places to eat</b><small>Restaurant ideas shaped by this trip’s group and atmosphere</small></div></div><div className="recommendation-rail food-rail">{plan.recommendations.food.map((item, index) => <article key={item.name}><span>{String(index + 1).padStart(2, '0')}</span><h4>{item.name}</h4><p>{item.detail}</p><em>{item.tag}</em></article>)}</div></div>
+      </section>
       <div className="results-grid">
         <div className="timeline"><h3>Your day-by-day route</h3>{plan.itinerary.map((item, i) => { const Icon = item.icon; return <article key={item.day}><div className="day-dot">{i+1}</div><div className="day-copy"><small>{item.day}</small><h4>{item.title}</h4><p>{item.detail}</p><span>{item.tag}</span></div><Icon className="day-icon"/></article>})}</div>
         <aside><div className="estimate-heading"><div><h3>Trip budget estimate</h3><p>Your selected route and booking searches</p></div><span>Planning prices</span></div>{plan.picks.map(p => { const Icon=p.icon; return <div className="pick" key={p.type}><div className="pick-icon"><Icon/></div><div className="pick-content"><small>{p.type}</small><b>{p.name}</b><span>{p.meta}</span><em><Star size={12} fill="currentColor"/> {p.note}</em><div className="pick-links">{p.links.map(link => <a className="pick-link" href={link.url} target="_blank" rel="noreferrer" key={link.label}>{link.label}<ArrowRight size={15}/></a>)}</div></div><strong><small>Estimate</small>{p.price}</strong></div>})}<p className="disclaimer"><b>The dollar amounts above are planning estimates—not prices from Google or a booking site.</b> Use the larger buttons to open searches with your locations, dates and preferences already filled in and see current prices.</p></aside>
